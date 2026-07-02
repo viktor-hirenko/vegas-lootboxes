@@ -1,0 +1,392 @@
+/*
+  Vegas Lootboxes — Fortune Drops widget styles.
+  DRAFT visuals only (no final art/animation) — see task scope. Tokens are named
+  so the final design pass can swap values without touching layout/JS logic.
+*/
+
+:root {
+  --lb-bg-card: linear-gradient(160deg, #3a1466 0%, #1c0b33 100%);
+  --lb-bg-card-locked: #150a22;
+  --lb-glow: radial-gradient(60% 60% at 50% 35%, rgba(236, 72, 153, 0.55) 0%, rgba(168, 85, 247, 0.28) 45%, rgba(168, 85, 247, 0) 75%);
+  --lb-accent: #a855f7;
+  --lb-accent-strong: #ec4899;
+  --lb-cta-bg: #ff6a00;
+  --lb-cta-bg-hover: #ff8a33;
+  --lb-text: #f5f0ff;
+  --lb-text-muted: rgba(245, 240, 255, 0.5);
+  --lb-border: rgba(255, 255, 255, 0.08);
+  --lb-radius: 16px;
+  --lb-radius-sm: 10px;
+
+  --lb-card-width: 208px;
+  --lb-card-height: 288px;
+  --lb-card-height-today: 320px;
+  --lb-gap: 16px;
+  --lb-glow-space: 28px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color-scheme: dark;
+}
+
+body {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  color: var(--lb-text);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.lb-widget {
+  width: 100%;
+  padding: var(--lb-glow-space) 0;
+}
+
+.lb-widget__header {
+  padding: 0 16px 20px;
+  text-align: center;
+}
+
+.lb-widget__heading {
+  margin: 0 0 8px;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 800;
+  background: linear-gradient(90deg, #ffd76a, #ff6ad5 50%, #7d5bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lb-widget__subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lb-text-muted);
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+/* Carousel shell */
+.lb-carousel {
+  position: relative;
+  padding: 0 var(--lb-glow-space);
+}
+
+.lb-carousel__viewport {
+  overflow: hidden;
+  padding: var(--lb-glow-space) 0;
+  margin: calc(var(--lb-glow-space) * -1) 0;
+}
+
+.lb-carousel__track {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lb-gap);
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--lb-glow-space) 2px;
+  margin: calc(var(--lb-glow-space) * -1) -2px;
+  scrollbar-width: none;
+}
+
+.lb-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Arrows: desktop navigation. Hidden on touch/mobile in favor of native swipe. */
+.lb-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--lb-border);
+  background: rgba(20, 8, 36, 0.85);
+  color: var(--lb-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.lb-carousel__arrow:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.35);
+}
+
+.lb-carousel__arrow:disabled {
+  cursor: default;
+}
+
+.lb-carousel__arrow--prev {
+  left: 0;
+}
+
+.lb-carousel__arrow--next {
+  right: 0;
+}
+
+.lb-carousel--scrollable .lb-carousel__arrow {
+  pointer-events: auto;
+}
+
+.lb-carousel--scrollable:not(.lb-carousel--at-start) .lb-carousel__arrow--prev {
+  opacity: 1;
+}
+
+.lb-carousel--scrollable:not(.lb-carousel--at-end) .lb-carousel__arrow--next {
+  opacity: 1;
+}
+
+/* Edge fade hints — draft approximation, tuned for dark platform backgrounds */
+.lb-carousel__viewport::before,
+.lb-carousel__viewport::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 56px;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.lb-carousel__viewport::before {
+  left: var(--lb-glow-space);
+  background: linear-gradient(90deg, rgba(10, 4, 20, 0.85), transparent);
+}
+
+.lb-carousel__viewport::after {
+  right: var(--lb-glow-space);
+  background: linear-gradient(270deg, rgba(10, 4, 20, 0.85), transparent);
+}
+
+.lb-carousel--scrollable:not(.lb-carousel--at-start) .lb-carousel__viewport::before,
+.lb-carousel--scrollable:not(.lb-carousel--at-end) .lb-carousel__viewport::after {
+  opacity: 1;
+}
+
+@media (max-width: 720px) {
+  .lb-carousel__arrow {
+    display: none;
+  }
+
+  .lb-carousel {
+    padding: 0 var(--lb-glow-space);
+  }
+}
+
+/* Card */
+.lb-card {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  width: var(--lb-card-width);
+  height: var(--lb-card-height);
+  border-radius: var(--lb-radius);
+  border: 1px solid var(--lb-border);
+  background: var(--lb-bg-card);
+  color: var(--lb-text);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  position: relative;
+  font: inherit;
+  cursor: default;
+  text-align: center;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.lb-card--today {
+  height: var(--lb-card-height-today);
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.35), 0 20px 45px -12px rgba(236, 72, 153, 0.55);
+}
+
+.lb-card--available {
+  cursor: pointer;
+}
+
+.lb-card--available:hover {
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.55), 0 24px 55px -10px rgba(236, 72, 153, 0.7);
+}
+
+.lb-card--available:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.lb-card--disabled {
+  cursor: default;
+}
+
+.lb-card--locked {
+  background: var(--lb-bg-card-locked);
+  opacity: 0.75;
+}
+
+.lb-card--opening {
+  animation: lb-card-open 600ms ease;
+}
+
+@keyframes lb-card-open {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    transform: scale(1.06) rotate(-2deg);
+  }
+  65% {
+    transform: scale(0.98) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.lb-card__date {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lb-text-muted);
+}
+
+.lb-card__tag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--lb-text-muted);
+}
+
+.lb-card__visual {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 0;
+}
+
+.lb-card__visual--glow::before {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background: var(--lb-glow);
+  filter: blur(2px);
+  z-index: 0;
+}
+
+.lb-card__icon {
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+}
+
+.lb-card__icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.lb-card__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.lb-card__title--muted {
+  color: var(--lb-text-muted);
+  font-weight: 600;
+}
+
+.lb-card__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--lb-cta-bg);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lb-card--available:hover .lb-card__cta {
+  background: var(--lb-cta-bg-hover);
+}
+
+/* Skeleton */
+.lb-card--skeleton {
+  background: rgba(255, 255, 255, 0.04);
+  border-style: dashed;
+  overflow: hidden;
+}
+
+.lb-card__skeleton-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-size: 200% 100%;
+  animation: lb-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes lb-shimmer {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .lb-widget__heading {
+    font-size: 22px;
+  }
+}

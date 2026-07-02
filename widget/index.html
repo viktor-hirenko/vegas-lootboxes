@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Vegas Lootboxes — Fortune Drops Widget</title>
+    <!--
+      Draft iFrame widget. Vanilla HTML/CSS/JS, no frameworks, no build step required.
+      See /test/index.html for the integration sandbox and full protocol docs,
+      or /INTEGRATION.md for a short written version.
+    -->
+    <link rel="stylesheet" href="./widget.css" />
+  </head>
+  <body>
+    <div id="lb-widget" class="lb-widget" data-lb-root>
+      <header class="lb-widget__header" data-lb-header>
+        <h1 class="lb-widget__heading" data-lb-heading></h1>
+        <p class="lb-widget__subtitle" data-lb-subtitle></p>
+      </header>
+
+      <div class="lb-carousel" data-lb-carousel>
+        <button
+          type="button"
+          class="lb-carousel__arrow lb-carousel__arrow--prev"
+          data-lb-prev
+          aria-label="Show previous cards"
+        >
+          <svg width="10" height="16" viewBox="0 0 10 16" fill="none" aria-hidden="true">
+            <path d="M9 1 2 8l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+
+        <div class="lb-carousel__viewport">
+          <div class="lb-carousel__track" data-lb-track role="list" aria-label="Lootbox cards"></div>
+        </div>
+
+        <button
+          type="button"
+          class="lb-carousel__arrow lb-carousel__arrow--next"
+          data-lb-next
+          aria-label="Show next cards"
+        >
+          <svg width="10" height="16" viewBox="0 0 10 16" fill="none" aria-hidden="true">
+            <path d="M1 1 8 8l-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <script type="module" src="./widget.js"></script>
+  </body>
+</html>
