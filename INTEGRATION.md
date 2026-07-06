@@ -1,155 +1,235 @@
-# Vegas Lootboxes — Fortune Drops widget: integration guide
+# Vegas Lootboxes — віджет Fortune Drops: посібник з інтеграції
 
-Short reference for the Front-End team integrating the draft iFrame widget. This
-mirrors the documentation on the sandbox test page (`test/index.html`) — open that
-page for a live, interactive version of everything below (edit data, fire
-`postMessage` commands, watch the log).
+Короткий довідник для фронтенд-команди, яка інтегрує чернетковий iframe-віджет. Цей текст
+дублює документацію на тестовій сторінці-пісочниці (`lootbox-test/index.html`) — відкрийте її,
+щоб інтерактивно перевірити все нижче (редагувати дані, надсилати команди `postMessage`,
+дивитися лог).
 
-> **Scope reminder:** this is a draft. Final open animation, pixel-perfect layout and
-> final visual design are a separate task. What's locked down here is the
-> **integration contract** — query params and `postMessage` — so Front-End work can
-> proceed independently.
+> **Нагадування про межі задачі:** це чернетка. Фінальна анімація відкриття, піксель-перфект
+> верстка та фінальний візуальний дизайн — окрема задача. Тут зафіксовано **контракт
+> інтеграції** — query-параметри та `postMessage` — щоб фронтенд міг працювати незалежно.
 
-## 1. Embedding the widget
+> **Ключовий принцип:** iframe-віджет — це **лише рендерер**. Він не робить API-запитів,
+> не визначає приз і не зберігає стан. Все це — відповідальність батьківської сторінки.
 
-Plain static page, no framework, no build step required. Point an `<iframe>` at the
-deployed `index.html` and pass initial content via query parameters:
+## 1. Вбудовування віджета
+
+Звичайна статична сторінка, без фреймворків і без кроку збірки. Вкажіть у `<iframe>` шлях
+до розгорнутого `index.html` і передайте дані карток через query-параметри. Заголовок секції
+та підзаголовок — на батьківській сторінці, у iframe лише карусель.
 
 ```html
 <iframe
   id="lootbox-widget"
-  src="https://cdn.example.com/widgets-smartico/lootbox/index.html?heading=Fortune%20Drops&c1_state=available&c1_date=1%20Mar&c1_title=See%20what%27s%20inside&c2_state=locked&c2_date=2%20Mar"
+  src="https://cdn.example.com/widgets-smartico/lootbox/index.html?c1_state=available&c1_date=1%20Mar&c1_title=See%20what%27s%20inside&c2_state=locked&c2_date=2%20Mar"
   style="width: 100%; border: 0;"
   title="Fortune Drops"
 ></iframe>
 ```
 
-The widget reports its real rendered height via a `resize` message — use it to size
-the iframe so card glow effects are never clipped, instead of hardcoding a height.
+Віджет повідомляє фактичну висоту рендеру через повідомлення `resize` — використовуйте
+його для підлаштування висоти iframe, щоб ефекти свічення карток не обрізалися, замість
+фіксованого значення.
 
-## 2. Query parameters (Parent → iFrame)
+## 2. Хто визначає приз і коли
 
-The format scales to any number of cards without changing the contract: global
-parameters describe the widget as a whole, and per-card parameters are grouped by a
-1-based index `{i}`. Adding/removing a day only means adding/removing one `c{i}_*`
-group — nothing else changes.
+**Приз визначає API/бекенд батьківської сторінки після кліку користувача.** iframe-віджет
+не робить жодних API-запитів і не знає, який приз випаде — він лише відображає те, що
+надсилає батьківська сторінка.
 
-### Global parameters
-
-| Param       | Type    | Default | Description |
-|-------------|---------|---------|-------------|
-| `heading`   | string  | —       | Widget title (e.g. "Fortune Drops"). Hidden if both heading and subtitle are empty. |
-| `subtitle`  | string  | —       | Short description line under the heading. |
-| `lang`      | string  | `en`    | Language code, passed through for future i18n/analytics use. |
-| `count`     | number  | —       | Optional. Ensures indices `1..count` render even if some `c{i}_*` groups are omitted (missing ones default to `locked`). Useful for reserving future/upcoming day slots. |
-| `origin`    | string  | —       | Parent origin used to restrict/allow `postMessage` in both directions. Falls back to `*` when omitted (fine for this draft/sandbox; tighten before production). |
-| `debug`     | boolean | `false` | When `true`, exposes `window.__lootboxWidget` inside the iframe for manual inspection in devtools. |
-
-### Per-card parameters — `c{i}_*` (i = 1, 2, 3…)
-
-| Param          | Type   | Description |
-|----------------|--------|-------------|
-| `c{i}_state`   | enum   | One of `available`, `locked`, `prize`, `prediction`, `empty`. Unknown/missing values fall back to `locked`. |
-| `c{i}_id`      | string | Optional stable identifier. Defaults to the index `i` as a string. |
-| `c{i}_date`    | string | Display date, e.g. `1 Mar`. |
-| `c{i}_title`   | string | Card title text (e.g. `"See what's inside"`, `"20 Free Spins"`). |
-| `c{i}_cta`     | string | CTA button label, used for the `prize` state (e.g. `"Go to Bonuses"`). |
-| `c{i}_tag`     | string | Small corner tag, e.g. `Opened` / `Missed`. |
-
-Example — 5 cards, mixed states:
+Послідовність:
 
 ```text
-?heading=Fortune%20Drops&subtitle=Visit%20every%20day...
-&c1_state=available&c1_date=1%20Mar&c1_title=See%20what%27s%20inside
-&c2_state=locked&c2_date=2%20Mar
-&c3_state=prize&c3_title=20%20Free%20Spins&c3_cta=Go%20to%20Bonuses&c3_tag=Opened
-&c4_state=prediction&c4_title=Something%20is%20waiting&c4_tag=Opened
-&c5_state=empty&c5_date=5%20Mar
+Користувач          iframe (віджет)            Parent (сторінка)            API/Backend
+    │                     │                           │                         │
+    │──клік по картці────▶│                           │                         │
+    │                     │──cardClick───────────────▶│                         │
+    │                     │  (draft-анімація)         │                         │
+    │                     │──animationComplete───────▶│                         │
+    │                     │                           │──запит результату──────▶│
+    │                     │                           │◀──prize / prediction────│
+    │                     │                           │                         │
+    │                     │                           │  показ попапа (поза     │
+    │                     │                           │  iframe, UI сторінки)   │
+    │                     │                           │                         │
+    │                     │◀──setCardState────────────│                         │
+    │                     │  (новий стан картки)      │                         │
 ```
 
-**No card params at all** is a valid, meaningful state: the widget shows the skeleton
-loading placeholder until it receives a `setContent` message — this covers the
-"backend replies a few seconds late" scenario from the task.
+**Чому саме так?** З батьківської таски (FP-5667): «стани карток згідно зі статусом з API»,
+«стан зберігається після перезавантаження», сценарії 1/2 (клік → анімація → результат →
+попап). iframe — лише рендерер: він отримує стан і показує його.
 
-## 3. postMessage protocol
+## 3. Query-параметри (Parent → iFrame)
 
-All messages — in both directions — share one envelope: `{ type: string, data?: object }`.
-The parent should always check `event.source` (and `event.origin`, if `origin` was
-configured) before trusting a message.
+Формат масштабується на будь-яку кількість карток без зміни контракту: глобальні
+параметри описують віджет загалом, а параметри кожної картки згруповані за індексом `{i}`
+(нумерація з 1). Додати або прибрати день — означає додати або прибрати одну групу `c{i}_*`,
+більше нічого не змінюється.
+
+### Глобальні параметри
+
+| Параметр    | Тип     | За замовч. | Опис |
+|-------------|---------|------------|------|
+| `lang`      | string  | `en`       | Код мови; передається для майбутньої локалізації та аналітики. |
+| `count`     | number  | —          | Необов'язковий. Гарантує рендер індексів `1..count`, навіть якщо деякі групи `c{i}_*` пропущені (відсутні стають `locked`). Корисно для резервування майбутніх днів. |
+| `origin`    | string  | —          | Повний origin батьківської сторінки зі схемою (напр. `https://your-site.com`, **не** голий домен) для обмеження `postMessage` в обидва боки. Якщо не вказано — `*` (для чернетки/пісочниці; перед продакшеном варто обмежити). |
+| `debug`     | boolean | `false`    | Якщо `true`, у iframe доступний `window.__lootboxWidget` для ручної перевірки в devtools. |
+
+### Параметри картки — `c{i}_*` (i = 1, 2, 3…)
+
+У реальному URL шаблон `c{i}_*` стає `c1_`, `c2_`, `c3_` тощо. Наприклад: `c1_state=available`,
+`c2_date=2%20Mar`.
+
+| Параметр       | Тип    | Опис |
+|----------------|--------|------|
+| `c{i}_state`   | enum   | Стан картки. Див. таблицю відповідності нижче. Невідомі значення → `locked`. |
+| `c{i}_id`      | string | Необов'язковий стабільний ідентифікатор. За замовчуванням — рядок з індексу `i`. |
+| `c{i}_date`    | string | Дата для відображення, напр. `1 Mar`. |
+| `c{i}_title`   | string | Текст заголовка картки (напр. `"See what's inside"`, `"20 Free Spins"`). |
+| `c{i}_cta`     | string | Підпис кнопки CTA для стану `prize` (напр. `"Go to Bonuses"`). |
+| `c{i}_prize`   | enum   | Арт призу для `prize` / `missed`: `bonus-money`, `cash`, `coin`, `free-spins`. За замовчуванням — `coin`. **Увага:** в URL параметр зветься `c{i}_prize`, а в postMessage (`setContent` / `setCardState`) те саме поле передається як `prizeType`. |
+| `c{i}_active`  | bool   | В URL допустиме лише значення `c{i}_active=true` (будь-яке інше = false). `true` — сьогоднішній щойно відкритий результат (вища картка + свічення, один бейдж дати). Пропущено/`false` — минулий день (нижча картка, бейджі дати + «Opened»). Лише для `prize` / `prediction`. CTA «Go to Bonuses» і повторний клік показуються лише при `prize` + `active: true` і непустому `c{i}_cta` / `cta`. |
+| `c{i}_tag`     | string | Перевизначення бейджа статусу. За замовчуванням — `Opened` для минулих результатів, `Missed` для `missed`. |
+
+#### Значення `c{i}_state` (Figma / задача → slug)
+
+| Slug (`c{i}_state`) | Назва в Figma / задачі | Коли використовувати |
+|---------------------|------------------------|----------------------|
+| `available` | Ready to open / Available today | Сьогоднішній день, картку можна відкрити |
+| `locked` | Locked / Upcoming | Майбутній день, ще недоступний |
+| `prize` | Opened with prize | День відкрито, випав приз |
+| `prediction` | Opened with prediction / Opened without prize | День відкрито, без призу (передбачення); один візуал у Figma |
+| `missed` | Missed | Пропущений день |
+
+Приклад — змішані стани (минулий приз, пропущений день, сьогоднішня картка, майбутні):
+
+```text
+?c1_state=prize&c1_date=1%20Mar&c1_title=20%20CAD%20bonus&c1_prize=bonus-money
+&c2_state=missed&c2_date=2%20Mar&c2_title=20%20Free%20Spins&c2_prize=free-spins
+&c3_state=prediction&c3_date=3%20Mar
+&c4_state=available&c4_date=4%20Mar
+&c5_state=locked&c5_date=5%20Mar
+```
+
+**Взагалі без параметрів карток** — валідний і осмислений стан: віджет показує скелетон
+завантаження, доки не отримає `setContent` — це сценарій «бекенд відповідає на кілька
+секунд пізніше» з задачі.
+
+## 4. Протокол postMessage (боєвий контракт)
+
+Усі повідомлення в обидва боки мають однакову обгортку: `{ type: string, data?: object }`.
+Батьківська сторінка завжди перевіряє `event.source` (і `event.origin`, якщо задано
+`origin`) перед тим, як довіряти повідомленню.
 
 ### iFrame → Parent
 
-| `type`               | `data`                        |
-|----------------------|-------------------------------|
-| `ready`               | `{ count }`                   |
-| `cardClick`           | `{ index, id, state }`        |
-| `animationComplete`   | `{ index, id, state }`        |
-| `resize`              | `{ height }`                  |
+| `type`               | `data`                        | Опис |
+|----------------------|-------------------------------|------|
+| `ready`               | `{ count }`                   | Один раз, після першого рендеру. Після цього безпечно надсилати команди. |
+| `cardClick`           | `{ index, id, state }`        | Клік по `available` (draft-анімація) або по **сьогоднішньому** `prize` (`active: true`, є `cta`) — знову відкрити попап. Минулий `prize` (`active: false`), `prediction` / `locked` / `missed` не клікабельні. |
+| `animationComplete`   | `{ index, id, state }`        | Draft-анімація відкриття завершилась. Сигнал parent’у: запит API → попап «You won» → `setCardState`. |
+| `resize`              | `{ height }`                  | Висота рендеру змінилась (ResizeObserver). Використовуйте для підлаштування висоти iframe. |
 
 ### Parent → iFrame
 
-| `type`          | `data`                                              |
-|-----------------|------------------------------------------------------|
-| `setContent`    | `{ heading?, subtitle?, cards[] }`                    |
-| `setCardState`  | `{ index\|id, state, title?, cta?, tag?, date? }`     |
-| `playOpen`      | `{ index\|id }`                                       |
-| `setLoading`    | `{ loading }`                                         |
+| `type`          | `data`                                              | Опис |
+|-----------------|------------------------------------------------------|------|
+| `setContent`    | `{ cards[] }`                                         | Замінює **всі** картки без перезавантаження iframe. Єдиний спосіб наповнити порожній віджет (skeleton). Форма кожного елемента `cards[]` — нижче. |
+| `setCardState`  | `{ index\|id, state, title?, cta?, tag?, date?, prizeType?, active? }` | Оновлює **одну** вже наявну картку за `id` (краще) або `index`. Змінюються лише передані поля. Для оновлення після кліку. **Не** створює нових карток. |
 
-### Event details
+Форма елемента масиву `cards[]` для `setContent` (поля збігаються з query-параметрами, але вже без префікса `c{i}_`; замість `c{i}_prize` — `prizeType`):
 
-- **`ready`** — sent once, right after the widget finishes parsing query params and
-  rendering its first frame (skeleton or real cards). Safe to start sending commands
-  as soon as this arrives.
-- **`cardClick`** — sent when the user clicks a card in the `available` state (other
-  states are not clickable). The draft "open" transition starts immediately after.
-- **`animationComplete`** — sent when the (draft, replaceable) open transition
-  finishes. This is the signal the product/parent side listens for to show the
-  prize/prediction popup on top of everything, per the task.
-- **`resize`** — sent whenever the widget's rendered height changes (via
-  `ResizeObserver`), including the extra space reserved for glow effects. Use it to
-  keep the iframe height in sync instead of a fixed value.
-- **`setContent`** — replaces heading/subtitle/cards **without reloading the
-  iframe**. This is how a late backend response should update the widget after the
-  initial (possibly skeleton) render.
-- **`setCardState`** — updates a single card by `id` (preferred) or `index`. Only the
-  fields you pass are changed.
-- **`playOpen`** — programmatically triggers the same draft open animation as a user
-  click, without requiring an actual click (useful for testing, or parent-driven
-  flows).
-- **`setLoading`** — force skeleton mode on/off regardless of whether card data is
-  available. Mainly for testing; in normal operation the widget manages this
-  automatically.
+```js
+iframe.contentWindow.postMessage({
+  type: 'setContent',
+  data: {
+    cards: [
+      { index: 1, id: '1', state: 'prize', date: '1 Mar', title: '20 CAD bonus', prizeType: 'bonus-money', active: false },
+      { index: 2, id: '2', state: 'missed', date: '2 Mar', title: '20 Free Spins', prizeType: 'free-spins' },
+      { index: 3, id: '3', state: 'available', date: '3 Mar' },
+      { index: 4, id: '4', state: 'locked', date: '4 Mar' },
+    ],
+  },
+}, '*');
+```
 
-## 4. Skeleton loading
+`index` (1-based) або `id` визначає відповідність картки; решта полів необов'язкові й діють так само, як однойменні query-параметри.
 
-On boot, the widget parses query params. If at least one `c{i}_*` group (or `count`)
-is present, it renders immediately with that data. Otherwise it shows skeleton
-placeholder cards and waits — the skeleton is replaced by real cards only once
-`setContent` (or `setCardState`) is received, so the backend can safely take a
-couple of extra seconds without the user ever seeing an empty/broken widget.
+## 5. Сценарії взаємодії
 
-## 5. Interaction order
+Після рендеру карток (при старті або після `setContent`) віджет автоматично
+прокручує карусель так, щоб картка `available` (або сьогоднішній результат з
+`active: true`) була притиснута до лівого краю. Минулі дні залишаються ліворуч
+за межами видимої області — їх можна переглянути стрілками або свайпом.
 
-1. **Parent** embeds the iframe with initial query params (or none, to start in skeleton mode).
-2. **Widget** parses params, renders skeleton or cards, then sends `ready { count }`.
-3. **Widget** sends `resize { height }` whenever its size changes (including right after first render).
-4. **Parent** (optional) sends `setContent` once the real backend data resolves, if it wasn't already in the initial query params.
-5. User clicks the `available` card → **Widget** sends `cardClick { index, id, state }` and starts the draft open transition.
-6. **Widget** sends `animationComplete { index, id, state }` when the transition finishes.
-7. **Parent** shows its prize/prediction popup on top of the page (outside the iframe) and, once the backend confirms the result, sends `setCardState` to persist the new visual state (e.g. `prize` or `empty`).
+### Сценарій 1: Звичайне завантаження (дані є одразу)
 
-## 6. Example integration (vanilla JS)
+Батьківська сторінка вже має дані з API до моменту створення iframe.
+
+```text
+1. Parent створює iframe з query-параметрами (стани всіх карток)
+2. Віджет розбирає параметри, рендерить картки
+3. Віджет → Parent: ready { count }
+4. Віджет → Parent: resize { height }
+5. Parent встановлює висоту iframe
+```
+
+### Сценарій 2: Пізня відповідь бекенду (skeleton → дані)
+
+Батьківська сторінка ще не має даних — бекенд відповідає через кілька секунд.
+
+```text
+1. Parent створює iframe БЕЗ параметрів карток (або з порожнім URL)
+2. Віджет показує скелетон
+3. Віджет → Parent: ready { count: 0 }
+4. Віджет → Parent: resize { height }
+5. ... бекенд відповідає ...
+6. Parent → iframe: setContent { cards: [...] }
+7. Віджет замінює скелетон реальними картками
+8. Віджет → Parent: resize { height }  (нова висота)
+```
+
+### Сценарій 3: Користувач відкриває картку
+
+```text
+1. Користувач клікає картку зі станом «available»
+2. Віджет → Parent: cardClick { index: 4, id: '4', state: 'available' }
+3. Віджет запускає draft-анімацію відкриття
+4. Віджет → Parent: animationComplete { index: 4, id: '4', state: 'available' }
+5. Parent робить запит до СВОГО API (визначення призу — логіка батьківської сторінки)
+6. API відповідає: prize / prediction
+7. Parent показує попап «You won» (поверх сторінки, ПОЗА iframe)
+8. Parent → iframe: setCardState { id: '4', state: 'prize', title: '15 CAD bonus', prizeType: 'bonus-money', cta: 'Go to Bonuses', active: true }
+9. Віджет оновлює вигляд картки (CTA на картці)
+10. Повторний клік по **сьогоднішньому** prize (`active: true`, є `cta`) → cardClick → parent знову показує попап
+11. «Go to Bonuses» на попапі → parent: навігація Profile / Bonuses + `setCardState { cta: '' }` (кнопка на картці зникає)
+12. Минулий prize (`active: false`) — без CTA і без кліку
+```
+
+`prediction` попап не відкриває і не клікабельна. CTA лише з поля `cta` parent’а (віджет не підставляє дефолт).
+
+## 6. Скелетон завантаження
+
+При старті віджет розбирає query-параметри. Якщо є хоча б одна група `c{i}_*` (або `count`),
+рендер відбувається одразу. Інакше — скелетон-картки в очікуванні; він замінюється
+реальними лише після `setContent`, тож бекенд може відповісти на кілька секунд
+пізніше, і користувач не побачить порожній або зламаний віджет. `setCardState`
+оновлює вже наявну картку й **не** призначений для наповнення порожнього скелетону —
+для першого наповнення завжди використовуйте `setContent`.
+
+## 7. Приклад інтеграції (vanilla JS)
 
 ```js
 const iframe = document.getElementById('lootbox-widget');
 
 window.addEventListener('message', (event) => {
-  if (event.source !== iframe.contentWindow) return; // ignore unrelated messages
+  if (event.source !== iframe.contentWindow) return;
   const { type, data } = event.data || {};
 
   switch (type) {
     case 'ready':
-      console.log('Widget ready, cards:', data.count);
+      console.log('Віджет готовий, карток:', data.count);
       break;
 
     case 'resize':
@@ -157,23 +237,26 @@ window.addEventListener('message', (event) => {
       break;
 
     case 'cardClick':
-      console.log('User clicked card', data.index, data.id);
+      // available: animation runs in the widget.
+      // prize: reopen the win popup (no animation).
+      if (data.state === 'prize') showPrizePopup({ id: data.id, title: data.title });
       break;
 
     case 'animationComplete': {
-      // Ask the backend for the real result, then show your popup and
-      // persist the new state back into the widget:
-      fetchLootboxResult(data.id).then((result) => {
-        showPrizePopup(result); // your own UI, rendered above the iframe
+      // Приз визначає ваш API, не iframe.
+      // yourApi.openLootbox() — це ваша логіка, не частина контракту віджета.
+      yourApi.openLootbox(data.id).then((result) => {
+        showPrizePopup(result);
         iframe.contentWindow.postMessage(
           {
             type: 'setCardState',
             data: {
               id: data.id,
-              state: result.prize ? 'prize' : 'empty',
-              title: result.prize ?? undefined,
-              cta: result.prize ? 'Go to Bonuses' : undefined,
-              tag: 'Opened',
+              state: result.hasPrize ? 'prize' : 'prediction',
+              title: result.hasPrize ? result.prizeTitle : undefined,
+              prizeType: result.hasPrize ? result.prizeType : undefined,
+              cta: result.hasPrize ? 'Go to Bonuses' : undefined,
+              active: true,
             },
           },
           '*',
@@ -183,32 +266,26 @@ window.addEventListener('message', (event) => {
     }
   }
 });
-
-// Later, once the backend resolves (e.g. a couple of seconds after load):
-iframe.contentWindow.postMessage(
-  {
-    type: 'setContent',
-    data: {
-      heading: 'Fortune Drops',
-      cards: [
-        { index: 1, id: 'day-1', state: 'available', date: '1 Mar', title: "See what's inside" },
-        { index: 2, id: 'day-2', state: 'locked', date: '2 Mar' },
-      ],
-    },
-  },
-  '*',
-);
 ```
 
-## 7. Deployment
+## 8. Тільки для пісочниці / тестування
 
-Manual upload, same as other widgets on this CDN — no automated pipeline was built
-for this draft. See [`README.md`](./README.md) for the exact steps and destination
-folder (`widgets-smartico/lootbox`).
+Наступні команди Parent → iFrame **реалізовані у віджеті**, але призначені виключно
+для пісочниці та ручного тестування. **Не використовуйте їх у продакшен-інтеграції.**
 
-## 8. Out of scope (this task)
+| `type`          | `data`           | Призначення |
+|-----------------|------------------|-------------|
+| `playOpen`      | `{ index\|id }`  | Програмно запускає draft-анімацію відкриття без реального кліку користувача. Для тестування анімації та подій. |
+| `setLoading`    | `{ loading }`    | Примусово вмикає/вимикає скелетон незалежно від наявності даних. У штатній роботі віджет керує скелетоном сам. |
 
-Final open animation, pixel-perfect layout and final visual design are explicitly
-out of scope — this widget and the sandbox exist to lock down the integration
-contract above so Front-End work can proceed while the final animation is built
-separately.
+## 9. Розгортання
+
+Ручне завантаження, як і для інших віджетів на CDN — автоматичний пайплайн для цієї
+чернетки не робили. Див. [`README.md`](./README.md) для кроків і папки призначення
+(`widgets-smartico/lootbox`).
+
+## 10. Поза межами цієї задачі
+
+Фінальна анімація відкриття, піксель-перфект верстка та фінальний візуальний дизайн
+явно поза межами — цей віджет і пісочниця існують, щоб зафіксувати контракт інтеграції
+вище, поки фінальну анімацію роблять окремо.

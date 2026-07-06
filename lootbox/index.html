@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Vegas Lootboxes — Fortune Drops Widget</title>
+    <!--
+      Draft iFrame widget. Vanilla HTML/CSS/JS, no frameworks, no build step required.
+      See /lootbox-test/index.html for the integration sandbox and full protocol docs,
+      or /INTEGRATION.md for a short written version.
+    -->
+    <link rel="stylesheet" href="./widget.css" />
+  </head>
+  <body>
+    <div id="lb-widget" class="lb-widget" data-lb-root>
+      <div class="lb-carousel" data-lb-carousel>
+        <button
+          type="button"
+          class="lb-carousel__arrow lb-carousel__arrow--prev"
+          data-lb-prev
+          aria-label="Show previous cards"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M15.6446 16.8546L10.9309 11.9937L15.6446 7.13289C16.1185 6.6443 16.1185 5.85503 15.6446 5.36644C15.1708 4.87785 14.4055 4.87785 13.9317 5.36644L8.35535 11.1168C7.88155 11.6054 7.88155 12.3946 8.35535 12.8832L13.9317 18.6336C14.4055 19.1221 15.1708 19.1221 15.6446 18.6336C16.1063 18.145 16.1185 17.3432 15.6446 16.8546Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+
+        <div class="lb-carousel__viewport">
+          <div class="lb-carousel__track" data-lb-track role="list" aria-label="Lootbox cards"></div>
+        </div>
+
+        <button
+          type="button"
+          class="lb-carousel__arrow lb-carousel__arrow--next"
+          data-lb-next
+          aria-label="Show next cards"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M8.35535 16.8546L13.0691 11.9937L8.35535 7.13289C7.88155 6.6443 7.88155 5.85503 8.35535 5.36644C8.82916 4.87785 9.59453 4.87785 10.0683 5.36644L15.6446 11.1168C16.1185 11.6054 16.1185 12.3946 15.6446 12.8832L10.0683 18.6336C9.59453 19.1221 8.82916 19.1221 8.35535 18.6336C7.8937 18.145 7.88155 17.3432 8.35535 16.8546Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <script type="module" src="./widget.js"></script>
+  </body>
+</html>

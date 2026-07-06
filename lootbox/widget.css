@@ -1,0 +1,473 @@
+/*
+  Vegas Lootboxes — Fortune Drops widget styles.
+  Values are taken from the Figma source (🕺 VEGAS / Smartico Lootboxes / Cards).
+  Card art is a layered raster composition (background scene + light glow +
+  object + title + badges), not CSS-drawn — matching the mockups 1:1.
+*/
+
+/* Onest — self-hosted (design token: typography/font-family/*) */
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/onest-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/onest-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/onest-700.woff2') format('woff2');
+}
+
+:root {
+  /* Colors (Figma design tokens) */
+  --lb-text: #f7f7f7; /* Text/color-text-alt */
+  --lb-badge-bg: rgba(
+    47,
+    0,
+    64,
+    0.8
+  ); /* component/badge/neutral/bg/light (#2f0040cc) */
+  --lb-badge-text: #fcfcfc; /* component/badge/neutral/content */
+  --lb-cta-bg: #f46121; /* component/button/primary/bg/default */
+  --lb-cta-text: #15010a; /* component/button/primary/content */
+  --lb-active-border: #fcfcfc; /* color/vegas/light */
+  --lb-arrow-bg: #4c426b; /* Secondary/color-button-secondary */
+  --lb-arrow-bg-hover: #5a4f7a;
+  --lb-arrow-icon: #fcfcfc; /* Thor/Button/Secondary/color-button-secondary-text */
+
+  /* Radii */
+  --lb-radius-pill: 9999px; /* radius/badge, radius/button */
+
+  /* Single source of truth for the card box.
+     Every other measurement is derived from it via calc(card / 208 * value)
+     so the whole composition scales proportionally with the card width.
+     Default = Figma design size; overridden fluidly on desktop in the
+     @container block below. */
+  --lb-card-width: 208px;
+  /* Active-card box-shadow blur (Figma 25 @ 208px). Widget vertical padding
+     uses blur + 3px so glow is not clipped by the iframe edge. */
+  --lb-glow-blur: calc(var(--lb-card-width) / 208 * 25);
+
+  /* Carousel chrome */
+  --lb-border: rgba(255, 255, 255, 0.08);
+
+  --lb-font:
+    'Onest', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  /* color-scheme: dark; */
+}
+
+body {
+  width: 100%;
+  /* Query container = iframe embed width (not viewport). Must live on an
+     ancestor so @container rules can target .lb-widget (a container cannot
+     query itself). */
+  container-type: inline-size;
+  font-family: var(--lb-font);
+  color: var(--lb-text);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.lb-widget {
+  width: 100%;
+  /* Glow clearance token — consumed by .lb-carousel__track vertical padding.
+     Must live on track (not here): viewport overflow-x:clip forces overflow-y
+     to clip, so box-shadow needs room inside the track's padding box.
+     Mobile: blur + 3px (= 28 @ 208px). Tablet+: 32px. */
+  --lb-glow-clearance: calc(var(--lb-glow-blur) + 3px);
+  padding: 0;
+}
+
+.lb-carousel {
+  position: relative;
+  /* Arrow chrome at the 872 design stop, fluid with the widget container.
+     Size = Figma 40px circle; inset = 32px from the carousel edge. */
+  --lb-arrow-size: calc(100cqw * 40 / 872);
+  --lb-arrow-inset: calc(100cqw * 32 / 872);
+}
+
+/* Viewport clips horizontally (so cards can't leak past the widget on either
+   side when there are many of them). overflow-x:clip also forces overflow-y
+   to clip descendants — box-shadow must fit inside .lb-carousel__track's
+   vertical padding (see --lb-glow-clearance), not .lb-widget padding. */
+.lb-carousel__viewport {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.lb-carousel__track {
+  display: flex;
+  align-items: center;
+  /* Figma gap = 16/208 (kept 1:1 with the design proportions). */
+  gap: calc(var(--lb-card-width) / 208 * 16);
+  overflow-x: auto;
+  overflow-y: visible;
+  /* Mandatory (not proximity): every swipe/arrow scroll lands on a card start,
+     so exactly 4 cards are visible at any rest position — never a 5th sliver. */
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  /* Horizontal gutter = gap (16). Vertical = --lb-glow-clearance so active-card
+     box-shadow (blur 25) is not clipped by the viewport scrollport. */
+  padding: var(--lb-glow-clearance) calc(var(--lb-card-width) / 208 * 16);
+  scrollbar-width: none;
+  scroll-padding-inline: calc(var(--lb-card-width) / 208 * 16);
+  min-width: 0;
+}
+
+.lb-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Arrows: Figma Chevron (77666:39727) — 40px circle, 24px icon, #4C426B.
+   All lengths are cqw so they scale with the widget; inset is 32px @ 872. */
+.lb-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  width: var(--lb-arrow-size);
+  height: var(--lb-arrow-size);
+  padding: calc(100cqw * 8 / 872);
+  border: 0;
+  border-radius: var(--lb-radius-pill);
+  background: var(--lb-arrow-bg);
+  color: var(--lb-arrow-icon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.lb-carousel__arrow svg {
+  display: block;
+  width: calc(100cqw * 24 / 872);
+  height: calc(100cqw * 24 / 872);
+  flex-shrink: 0;
+}
+
+.lb-carousel__arrow:hover:not(:disabled) {
+  background: var(--lb-arrow-bg-hover);
+}
+
+.lb-carousel__arrow:disabled {
+  cursor: default;
+}
+
+.lb-carousel__arrow--prev {
+  left: var(--lb-arrow-inset);
+}
+
+.lb-carousel__arrow--next {
+  right: var(--lb-arrow-inset);
+}
+
+.lb-carousel--scrollable .lb-carousel__arrow {
+  pointer-events: auto;
+}
+
+.lb-carousel--scrollable:not(.lb-carousel--at-start) .lb-carousel__arrow--prev {
+  opacity: 1;
+}
+
+.lb-carousel--scrollable:not(.lb-carousel--at-end) .lb-carousel__arrow--next {
+  opacity: 1;
+}
+
+/* Synced with the fluid @container breakpoint: arrows appear only when the
+   embed is wide enough for the 4-card layout. Driven by the widget's own
+   width, not the host viewport. */
+@container (max-width: 767px) {
+  .lb-carousel__arrow {
+    display: none;
+  }
+}
+
+/* Fluid card size: activates on tablet/desktop embeds.
+   Below 768px we keep 208px cards with native swipe (mobile UX).
+
+   Exact fit for symmetric gutters on BOTH sides at once:
+     2·gutter + 4·card + 3·gap = W
+   with gutter = gap = card·16/208:
+     card · (4 + 5·16/208) = W  →  card = W · 13/57
+   The 5th card then starts exactly at x=W (no sliver). A slightly larger
+   coefficient (e.g. 23cqw) overflows by a few px, eats the right gutter,
+   and makes the left glow look more clipped than the right. */
+@container (min-width: 768px) {
+  .lb-widget {
+    --lb-glow-clearance: 32px;
+  }
+
+  .lb-carousel {
+    --lb-card-width: calc(100cqw * 13 / 57);
+  }
+}
+
+/* Card ---------------------------------------------------------------------
+   Layer stack (bottom -> top):
+   1. .lb-card__bg      full-bleed background scene (per state/variant)
+   2. .lb-card__light   radial glow, centered behind the object
+   3. .lb-card__object  the disco ball / lock / prize / prediction art
+   4. .lb-card__title, .lb-card__cta
+   5. .lb-card__badges  date + status (Opened / Missed) */
+.lb-card {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  position: relative;
+  width: var(--lb-card-width);
+  /* Height follows the design aspect-ratio, so the card never distorts. */
+  aspect-ratio: 208 / 288;
+  height: auto;
+  border: 0;
+  border-radius: calc(var(--lb-card-width) / 208 * 8);
+  overflow: hidden;
+  padding: 0;
+  background: transparent;
+  color: var(--lb-text);
+  font: inherit;
+  text-align: center;
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* "Active"/today variant: taller card with the light border + soft glow. */
+.lb-card--active {
+  aspect-ratio: 208 / 320;
+  border: 1px solid var(--lb-active-border);
+  box-shadow: 0 0 var(--lb-glow-blur) 0 rgba(253, 210, 255, 0.85);
+}
+
+/* Press feedback only on real <button> cards (available / today's prize with CTA).
+   Past prize/prediction are <div class="lb-card--disabled"> and must not animate. */
+button.lb-card {
+  cursor: pointer;
+}
+
+button.lb-card:active {
+  transform: translateY(1px) scale(0.995);
+}
+
+.lb-card--disabled {
+  cursor: default;
+}
+
+.lb-card--opening {
+  animation: lb-card-open 600ms ease;
+}
+
+@keyframes lb-card-open {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    transform: scale(1.04) rotate(-2deg);
+  }
+  65% {
+    transform: scale(0.98) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.lb-card__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lb-card__content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--lb-card-width) / 208 * 8);
+  padding: calc(var(--lb-card-width) / 208 * 16);
+}
+
+/* Ball-on-a-chain cards: pin the object to the top so the chain meets the top
+   edge; the title then rides directly beneath it (no vertical centering). */
+.lb-card--chain .lb-card__content {
+  justify-content: flex-start;
+  padding-top: 0;
+}
+
+.lb-card__object-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lb-card__light {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--lb-card-width); /* 208px @ design */
+  height: var(--lb-card-width);
+  object-fit: contain;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Ready-to-open sunburst is wider than the "other" radial glow. */
+.lb-card__light--ready {
+  width: calc(var(--lb-card-width) / 208 * 300);
+  height: calc(var(--lb-card-width) / 208 * 300);
+}
+
+.lb-card__object {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lb-card__object--lg {
+  width: calc(var(--lb-card-width) / 208 * 144);
+}
+
+.lb-card__object--md {
+  width: calc(var(--lb-card-width) / 208 * 128);
+}
+
+.lb-card__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-weight: 700;
+  font-size: calc(var(--lb-card-width) / 208 * 16);
+  line-height: 1.1;
+  color: var(--lb-text);
+  word-break: break-word;
+}
+
+.lb-card__cta {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--lb-card-width) / 208 * 8)
+    calc(var(--lb-card-width) / 208 * 16);
+  border-radius: var(--lb-radius-pill);
+  background: var(--lb-cta-bg);
+  color: var(--lb-cta-text);
+  font-weight: 700;
+  font-size: calc(var(--lb-card-width) / 208 * 14);
+  line-height: calc(var(--lb-card-width) / 208 * 20);
+  white-space: nowrap;
+}
+
+.lb-card__badges {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--lb-card-width) / 208 * 16);
+  left: calc(var(--lb-card-width) / 208 * 16);
+  right: calc(var(--lb-card-width) / 208 * 16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--lb-card-width) / 208 * 4);
+  pointer-events: none;
+}
+
+.lb-card__badges--single {
+  justify-content: flex-start;
+}
+
+.lb-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--lb-card-width) / 208 * 16);
+  padding: 0 calc(var(--lb-card-width) / 208 * 8);
+  border-radius: var(--lb-radius-pill);
+  background: var(--lb-badge-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--lb-badge-text);
+  font-weight: 700;
+  font-size: calc(var(--lb-card-width) / 208 * 10);
+  line-height: calc(var(--lb-card-width) / 208 * 17);
+  white-space: nowrap;
+}
+
+/* Skeleton — Figma: Smartico Lootboxes / Cards, State=skeleton (78479:537914).
+   bg #440e61, centered Vegas logo at 128px / 32% opacity, no shimmer. */
+.lb-card--skeleton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #440e61;
+  border: none;
+  box-shadow: none;
+  padding: 0 calc(var(--lb-card-width) / 208 * 16);
+}
+
+.lb-card__skeleton-logo {
+  position: relative;
+  flex-shrink: 0;
+  width: calc(var(--lb-card-width) / 208 * 128);
+  height: calc(var(--lb-card-width) / 208 * 128);
+  opacity: 0.32;
+}
+
+.lb-card__skeleton-logo img {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 100.46%;
+  height: 102.5%;
+  max-width: none;
+  object-fit: contain;
+  aspect-ratio: 46 / 40;
+  pointer-events: none;
+}

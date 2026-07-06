@@ -44,8 +44,13 @@ const server = http.createServer((req, res) => {
   });
 });
 
+const servingDist = path.resolve(baseDir) === path.resolve(root, 'dist');
+
 server.listen(port, () => {
   console.log(`\nVegas Lootboxes dev server running at http://localhost:${port}/`);
-  console.log(`  Widget:    http://localhost:${port}/widget/index.html`);
-  console.log(`  Test page: http://localhost:${port}/test/index.html\n`);
+  if (servingDist) {
+    console.log('  (serving dist/ — production build preview)');
+  }
+  console.log(`  Widget:    http://localhost:${port}/lootbox/index.html`);
+  console.log(`  Test page: http://localhost:${port}/lootbox-test/index.html\n`);
 });
