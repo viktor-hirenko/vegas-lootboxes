@@ -1,6 +1,4 @@
-// Maps card states / prize types to the raster art exported from Figma
-// (lootbox/assets/images/**). Using real images — not CSS/SVG drawings —
-// keeps the cards pixel-identical to the mockups.
+// Maps card states and prize types to raster assets under lootbox/assets/images/.
 
 const BASE = './assets/images';
 

@@ -93,8 +93,8 @@ function handleCardClick(card) {
     id: card.id,
     state: card.state,
   });
-  // Draft open animation only for available; prize re-clicks just notify parent
-  // so it can show the win popup again (Figma: claimed card → popup).
+  // Draft open animation only for available; prize re-clicks notify the parent
+  // so it can reopen the win popup without replaying the open transition.
   if (card.state === CARD_STATE.AVAILABLE) {
     triggerOpenAnimation(card);
   }

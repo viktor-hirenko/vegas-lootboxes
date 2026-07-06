@@ -1,7 +1,7 @@
 // Single source of truth for the integration contract: card states and
 // postMessage type names. Keep this file the reference when writing docs.
 
-/** Canonical card states, matching the Figma card set. `skeleton` is an
+/** Canonical card states used by query params and postMessage. `skeleton` is an
  * internal render mode, not a state that comes from query params/setCardState.
  *
  * The prize/prediction "opened result" states have two visual variants

@@ -1,11 +1,10 @@
 /*
   Vegas Lootboxes — Fortune Drops widget styles.
-  Values are taken from the Figma source (🕺 VEGAS / Smartico Lootboxes / Cards).
-  Card art is a layered raster composition (background scene + light glow +
-  object + title + badges), not CSS-drawn — matching the mockups 1:1.
+  Cards are layered raster compositions (background + glow + object + title +
+  badges), not CSS-drawn shapes. Measurements scale from a 208px base width.
 */
 
-/* Onest — self-hosted (design token: typography/font-family/*) */
+/* Onest — self-hosted brand font */
 @font-face {
   font-family: 'Onest';
   font-style: normal;
@@ -29,33 +28,32 @@
 }
 
 :root {
-  /* Colors (Figma design tokens) */
-  --lb-text: #f7f7f7; /* Text/color-text-alt */
+  /* Theme colors */
+  --lb-text: #f7f7f7;
   --lb-badge-bg: rgba(
     47,
     0,
     64,
     0.8
-  ); /* component/badge/neutral/bg/light (#2f0040cc) */
-  --lb-badge-text: #fcfcfc; /* component/badge/neutral/content */
-  --lb-cta-bg: #f46121; /* component/button/primary/bg/default */
-  --lb-cta-text: #15010a; /* component/button/primary/content */
-  --lb-active-border: #fcfcfc; /* color/vegas/light */
-  --lb-arrow-bg: #4c426b; /* Secondary/color-button-secondary */
+  );
+  --lb-badge-text: #fcfcfc;
+  --lb-cta-bg: #f46121;
+  --lb-cta-text: #15010a;
+  --lb-active-border: #fcfcfc;
+  --lb-arrow-bg: #4c426b;
   --lb-arrow-bg-hover: #5a4f7a;
-  --lb-arrow-icon: #fcfcfc; /* Thor/Button/Secondary/color-button-secondary-text */
+  --lb-arrow-icon: #fcfcfc;
 
   /* Radii */
-  --lb-radius-pill: 9999px; /* radius/badge, radius/button */
+  --lb-radius-pill: 9999px;
 
   /* Single source of truth for the card box.
      Every other measurement is derived from it via calc(card / 208 * value)
      so the whole composition scales proportionally with the card width.
-     Default = Figma design size; overridden fluidly on desktop in the
-     @container block below. */
+     Default is 208px; overridden fluidly on desktop in the @container block. */
   --lb-card-width: 208px;
-  /* Active-card box-shadow blur (Figma 25 @ 208px). Widget vertical padding
-     uses blur + 3px so glow is not clipped by the iframe edge. */
+  /* Active-card glow blur at the design base (25px @ 208px). Vertical track
+     padding uses blur + 3px so the shadow is not clipped by the iframe. */
   --lb-glow-blur: calc(var(--lb-card-width) / 208 * 25);
 
   /* Carousel chrome */
@@ -104,8 +102,7 @@ body {
 
 .lb-carousel {
   position: relative;
-  /* Arrow chrome at the 872 design stop, fluid with the widget container.
-     Size = Figma 40px circle; inset = 32px from the carousel edge. */
+  /* Arrow size and inset scale with the embed width (40px / 32px at 872px). */
   --lb-arrow-size: calc(100cqw * 40 / 872);
   --lb-arrow-inset: calc(100cqw * 32 / 872);
 }
@@ -122,7 +119,7 @@ body {
 .lb-carousel__track {
   display: flex;
   align-items: center;
-  /* Figma gap = 16/208 (kept 1:1 with the design proportions). */
+  /* Gap scales with card width (16px at the 208px base). */
   gap: calc(var(--lb-card-width) / 208 * 16);
   overflow-x: auto;
   overflow-y: visible;
@@ -143,8 +140,7 @@ body {
   display: none;
 }
 
-/* Arrows: Figma Chevron (77666:39727) — 40px circle, 24px icon, #4C426B.
-   All lengths are cqw so they scale with the widget; inset is 32px @ 872. */
+/* Carousel arrows: circular buttons that scale with the embed width. */
 .lb-carousel__arrow {
   position: absolute;
   top: 50%;
@@ -345,7 +341,7 @@ button.lb-card:active {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: var(--lb-card-width); /* 208px @ design */
+  width: var(--lb-card-width);
   height: var(--lb-card-width);
   object-fit: contain;
   z-index: 0;
@@ -439,8 +435,7 @@ button.lb-card:active {
   white-space: nowrap;
 }
 
-/* Skeleton — Figma: Smartico Lootboxes / Cards, State=skeleton (78479:537914).
-   bg #440e61, centered Vegas logo at 128px / 32% opacity, no shimmer. */
+/* Loading placeholder: solid background, centered logo at reduced opacity. */
 .lb-card--skeleton {
   display: flex;
   align-items: center;

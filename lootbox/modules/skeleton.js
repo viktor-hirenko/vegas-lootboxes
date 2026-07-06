@@ -1,6 +1,5 @@
 // Renders placeholder skeleton cards while the widget waits for real content.
-// Visual spec: Figma node 78479:537914 (State=skeleton) — bg #440e61,
-// 208×288/320px, radius 8px, centered Logo_Vegas at 128px / opacity 32%.
+// Static layout: purple background, centered brand logo at reduced opacity.
 
 const LOGO_SRC = './assets/images/logo-vegas.png';
 

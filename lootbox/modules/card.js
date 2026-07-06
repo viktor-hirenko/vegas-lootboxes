@@ -1,6 +1,6 @@
-// Renders a single card DOM element for every Figma state, as a layered raster
-// composition (background scene + light glow + object + title + badges), and
-// plays the draft "open" transition used before ANIMATION_COMPLETE fires.
+// Renders a single card as a layered raster composition (background, glow,
+// object, title, badges) and plays the draft open transition before
+// ANIMATION_COMPLETE is sent.
 
 import {
   CARD_STATE,

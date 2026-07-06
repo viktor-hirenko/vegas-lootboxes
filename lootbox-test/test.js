@@ -284,7 +284,7 @@ function handlePrizeCardClick(data) {
   showPrizePopup({ id, title, prizeType })
 }
 
-/** After "Go to Bonuses", clear CTA on today's prize (Figma: button disappears). */
+/** After "Go to Bonuses", clear CTA on today's prize (button is removed). */
 function clearActivePrizeCta() {
   if (!lastPrizePopup?.id) return
 

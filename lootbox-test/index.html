@@ -80,7 +80,7 @@
         }
       }
 
-      /* Sticky wrapper: прилипає до верху, поки не проскролиться весь sandbox-shell */
+      /* Sticky sidebar until the sandbox shell scrolls out of view. */
       .sandbox-sidebar {
         position: sticky;
         top: 16px;
@@ -357,7 +357,7 @@
         color: #fff;
       }
 
-      /* Figma: Smartico Lootboxes / BG / Desktop|Mobile — parent page only */
+      /* Parent-page background (desktop / mobile variants). */
       .preview-stage {
         position: relative;
         isolation: isolate;
@@ -412,7 +412,7 @@
         z-index: 1;
       }
 
-      /* Заголовок і підзаголовок секції — частина батьківської сторінки (не iframe). */
+      /* Section heading and subtitle belong to the parent page, not the iframe. */
       .sandbox-site-header {
         text-align: center;
         padding: 0 8px;
@@ -443,8 +443,7 @@
         width: 100%;
       }
 
-      /* Desktop parent container mirrors the site (Figma Desktop "Wrap" = 872px).
-         The widget scales to fit 4 cards + glow inside whatever width it gets. */
+      /* Desktop embed width matches the production site container (872px). */
       .preview-frame {
         width: 100%;
         max-width: 872px;
@@ -536,9 +535,8 @@
         color: #333;
       }
 
-      /* Mock parent "You won" popup — lives inside .preview-stage only.
-         Desktop (Figma 77666:39765): centered modal 432px.
-         Mobile (Figma 77666:39591): bottom sheet, slides up. */
+      /* Mock parent win popup — scoped to .preview-stage.
+         Desktop: centered modal. Mobile: bottom sheet. */
       .prize-popup {
         position: absolute;
         inset: 0;
