@@ -72,9 +72,6 @@ const DEFAULT_OPEN_PRIZE = {
 /** Card ids/indexes currently waiting on the mock open API. */
 const openInFlight = new Set()
 
-/** @type {{ id: string, title: string, prizeType?: string } | null} */
-let lastPrizePopup = null
-
 const state = {
   lang: 'en',
   origin: '',
@@ -92,22 +89,6 @@ const previewStage = document.getElementById('preview-stage')
 const urlDisplay = document.getElementById('url-display')
 const logEl = document.getElementById('log')
 const cardRowsEl = document.getElementById('card-rows')
-const prizePopup = document.getElementById('prize-popup')
-const prizePopupTitle = document.getElementById('prize-popup-title')
-const prizePopupIcon = document.getElementById('prize-popup-icon')
-const prizePopupCta = document.getElementById('prize-popup-cta')
-const prizePopupClose = document.getElementById('prize-popup-close')
-const prizePopupBackdrop = document.getElementById('prize-popup-backdrop')
-
-const PRIZE_ICON_BY_TYPE = {
-  'bonus-money': '../lootbox/assets/images/prizes/bonus-money.png',
-  cash: '../lootbox/assets/images/prizes/cash.png',
-  coin: '../lootbox/assets/images/prizes/coin.png',
-  'free-spins': '../lootbox/assets/images/prizes/free-spins.png',
-}
-
-/** @type {ReturnType<typeof setTimeout> | null} */
-let prizePopupHideTimer = null
 
 const globalInputs = document.querySelectorAll('[data-global]')
 
@@ -177,43 +158,8 @@ function findCardIndexFromEvent(data) {
 }
 
 /**
- * @param {{ id?: string|number, title?: string, prizeType?: string }} prize
- */
-function showPrizePopup(prize) {
-  const id = String(prize.id ?? '')
-  const title = prize.title || DEFAULT_OPEN_PRIZE.title
-  const prizeType = prize.prizeType || DEFAULT_OPEN_PRIZE.prizeType
-  lastPrizePopup = { id, title, prizeType }
-
-  if (prizePopupHideTimer != null) {
-    clearTimeout(prizePopupHideTimer)
-    prizePopupHideTimer = null
-  }
-
-  if (prizePopupTitle) prizePopupTitle.textContent = title
-  if (prizePopupIcon) {
-    prizePopupIcon.src =
-      PRIZE_ICON_BY_TYPE[prizeType] || PRIZE_ICON_BY_TYPE['bonus-money']
-  }
-
-  prizePopup?.removeAttribute('hidden')
-  // Next frame so CSS can transition from the closed state.
-  window.requestAnimationFrame(() => {
-    prizePopup?.classList.add('is-open')
-  })
-}
-
-function hidePrizePopup() {
-  prizePopup?.classList.remove('is-open')
-  if (prizePopupHideTimer != null) clearTimeout(prizePopupHideTimer)
-  prizePopupHideTimer = window.setTimeout(() => {
-    prizePopup?.setAttribute('hidden', '')
-    prizePopupHideTimer = null
-  }, 280)
-}
-
-/**
- * After draft open animation ends: mock API → setCardState(prize) → show popup.
+ * After draft open animation ends: mock API → setCardState(prize).
+ * Popup UI is the parent FE's responsibility — sandbox only logs events.
  * @param {{ id?: string|number, index?: number, state?: string }} data
  */
 function mockOpenBackendAfterAnimation(data) {
@@ -260,47 +206,7 @@ function mockOpenBackendAfterAnimation(data) {
       date: card.date || undefined,
       active: true,
     })
-
-    showPrizePopup({ id, title, prizeType })
   }, OPEN_BACKEND_DELAY_MS)
-}
-
-/**
- * Re-open the win popup when the user clicks today's prize card (active + cta).
- * @param {{ id?: string|number, index?: number, state?: string }} data
- */
-function handlePrizeCardClick(data) {
-  if (data?.state !== 'prize') return
-
-  const cardIndex = findCardIndexFromEvent(data)
-  const card = cardIndex >= 0 ? state.cards[cardIndex] : null
-  // Past prize (active: false) is not interactive — only today's result.
-  if (!card?.active || !card.cta) return
-
-  const id = String(data.id ?? cardIndex + 1)
-  const title = card.title || lastPrizePopup?.title || DEFAULT_OPEN_PRIZE.title
-  const prizeType =
-    card.prizeType || lastPrizePopup?.prizeType || DEFAULT_OPEN_PRIZE.prizeType
-  showPrizePopup({ id, title, prizeType })
-}
-
-/** After "Go to Bonuses", clear CTA on today's prize (button is removed). */
-function clearActivePrizeCta() {
-  if (!lastPrizePopup?.id) return
-
-  const cardIndex = findCardIndexFromEvent({ id: lastPrizePopup.id })
-  if (cardIndex < 0) return
-
-  const card = state.cards[cardIndex]
-  if (card.state !== 'prize' || !card.active) return
-
-  card.cta = ''
-  renderCardRows()
-  postToWidget('setCardState', {
-    index: cardIndex + 1,
-    id: String(lastPrizePopup.id),
-    cta: '',
-  })
 }
 
 const LOG_DIRECTION_LABEL = {
@@ -529,23 +435,10 @@ window.addEventListener('message', event => {
     }, LATE_BACKEND_DELAY_MS)
   }
 
-  // First open: animation finished → mock API → setCardState + popup.
+  // First open: animation finished → mock API → setCardState (no popup in sandbox).
   if (type === 'animationComplete') {
     mockOpenBackendAfterAnimation(data)
   }
-
-  // Prize card / CTA click → reopen popup (prediction does not emit clicks).
-  if (type === 'cardClick' && data?.state === 'prize') {
-    handlePrizeCardClick(data)
-  }
-})
-
-prizePopupClose?.addEventListener('click', hidePrizePopup)
-prizePopupBackdrop?.addEventListener('click', hidePrizePopup)
-prizePopupCta?.addEventListener('click', () => {
-  hidePrizePopup()
-  log('info', 'mock: navigate to Profile / Bonuses', lastPrizePopup)
-  clearActivePrizeCta()
 })
 
 // --- Boot -------------------------------------------------------------------
