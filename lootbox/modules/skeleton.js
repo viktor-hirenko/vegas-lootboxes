@@ -1,7 +1,7 @@
 // Renders placeholder skeleton cards while the widget waits for real content.
 // Static layout: purple background, centered brand logo at reduced opacity.
 
-const LOGO_SRC = './assets/images/logo-vegas.png';
+const LOGO_SRC = './assets/images/logo-vegas.webp';
 
 /**
  * @param {HTMLElement} track container to fill with skeleton cards

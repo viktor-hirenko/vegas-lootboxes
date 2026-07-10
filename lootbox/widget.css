@@ -1,44 +1,46 @@
 /*
-  Vegas Lootboxes — Fortune Drops widget styles.
+  Vegas Lootboxes widget styles.
   Cards are layered raster compositions (background + glow + object + title +
   badges), not CSS-drawn shapes. Measurements scale from a 208px base width.
 */
 
-/* Onest — self-hosted brand font */
+/* Sora — self-hosted brand font (titles, body copy, CTAs and badges).
+   Weights: 400 regular, 600 semibold, 700 bold. */
 @font-face {
-  font-family: 'Onest';
+  font-family: 'Sora';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('./assets/fonts/onest-400.woff2') format('woff2');
+  src: url('./assets/fonts/sora-400.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Onest';
+  font-family: 'Sora';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url('./assets/fonts/onest-600.woff2') format('woff2');
+  src: url('./assets/fonts/sora-600.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Onest';
+  font-family: 'Sora';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('./assets/fonts/onest-700.woff2') format('woff2');
+  src: url('./assets/fonts/sora-700.woff2') format('woff2');
 }
 
 :root {
   /* Theme colors */
   --lb-text: #f7f7f7;
-  --lb-badge-bg: rgba(
-    47,
-    0,
-    64,
-    0.8
-  );
-  --lb-badge-text: #fcfcfc;
+  /* Date badge — filled pill */
+  --lb-badge-bg: rgba(131, 68, 153, 0.4);
+  --lb-badge-text: #f7f7f7;
+  /* Status badge — outline pill: Opened / Not opened */
+  --lb-badge-outline-border: rgba(118, 69, 144, 0.8);
+  --lb-badge-outline-text: #b6bdcc;
   --lb-cta-bg: #f46121;
   --lb-cta-text: #15010a;
+  /* Card borders: inactive (history / locked / missed) vs today's active. */
+  --lb-card-border: #b884ff;
   --lb-active-border: #fcfcfc;
   --lb-arrow-bg: #4c426b;
   --lb-arrow-bg-hover: #5a4f7a;
@@ -60,7 +62,7 @@
   --lb-border: rgba(255, 255, 255, 0.08);
 
   --lb-font:
-    'Onest', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Sora', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     Helvetica, Arial, sans-serif;
 }
 
@@ -235,8 +237,22 @@ body {
    2. .lb-card__light   radial glow, centered behind the object
    3. .lb-card__object  the disco ball / lock / prize / prediction art
    4. .lb-card__title, .lb-card__cta
-   5. .lb-card__badges  date + status (Opened / Missed) */
+   5. .lb-card__badges  date + status (Opened / Not opened) */
 .lb-card {
+  /* Bottom-spacing knobs (208-grid units, scale with the card):
+       --lb-pad-bottom : no-button cards — gap from the card bottom to the title.
+       --lb-cta-bottom : with-button cards — gap from the card bottom to the CTA.
+       --lb-cta-h      : CTA button height.
+       --lb-cta-gap    : reserved gap between the title and the CTA.
+     With-button bottom padding is derived (cta-bottom + cta-h + cta-gap) so the
+     title always clears the absolutely-pinned button. */
+  --lb-pad: calc(var(--lb-card-width) / 208 * 16);
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 29);
+  --lb-cta-bottom: calc(var(--lb-card-width) / 208 * 23);
+  --lb-cta-h: calc(var(--lb-card-width) / 208 * 32);
+  --lb-cta-gap: calc(var(--lb-card-width) / 208 * 14);
+  --lb-content-gap: calc(var(--lb-card-width) / 208 * 8);
+
   scroll-snap-align: start;
   flex: 0 0 auto;
   position: relative;
@@ -244,7 +260,7 @@ body {
   /* Height follows the design aspect-ratio, so the card never distorts. */
   aspect-ratio: 208 / 288;
   height: auto;
-  border: 0;
+  border: 1px solid var(--lb-card-border);
   border-radius: calc(var(--lb-card-width) / 208 * 8);
   overflow: hidden;
   padding: 0;
@@ -262,6 +278,7 @@ body {
   aspect-ratio: 208 / 320;
   border: 1px solid var(--lb-active-border);
   box-shadow: 0 0 var(--lb-glow-blur) 0 rgba(253, 210, 255, 0.85);
+  overflow: visible;
 }
 
 /* Press feedback only on real <button> cards (available / today's prize with CTA).
@@ -276,25 +293,6 @@ button.lb-card:active {
 
 .lb-card--disabled {
   cursor: default;
-}
-
-.lb-card--opening {
-  animation: lb-card-open 600ms ease;
-}
-
-@keyframes lb-card-open {
-  0% {
-    transform: scale(1) rotate(0deg);
-  }
-  35% {
-    transform: scale(1.04) rotate(-2deg);
-  }
-  65% {
-    transform: scale(0.98) rotate(2deg);
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-  }
 }
 
 .lb-card__bg {
@@ -316,24 +314,71 @@ button.lb-card:active {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: calc(var(--lb-card-width) / 208 * 8);
-  padding: calc(var(--lb-card-width) / 208 * 16);
+  /* Object at top, title pushed to the bottom: the growing .lb-card__object-wrap
+     eats the free space so the title always lands exactly --lb-pad-bottom above
+     the edge, regardless of object height. */
+  justify-content: flex-start;
+  gap: var(--lb-content-gap);
+  padding: var(--lb-pad);
+  padding-bottom: var(--lb-pad-bottom); /* NO-BUTTON: title -> bottom gap */
+  overflow: hidden;
 }
 
-/* Ball-on-a-chain cards: pin the object to the top so the chain meets the top
-   edge; the title then rides directly beneath it (no vertical centering). */
+/* Ball-on-a-chain cards: let the chain reach the very top edge. */
 .lb-card--chain .lb-card__content {
-  justify-content: flex-start;
   padding-top: 0;
+}
+
+/* WITH-BUTTON cards (prize / prediction active): reserve the CTA footer so the
+   title clears the absolutely-pinned button. Derived from the CTA knobs above. */
+.lb-card__content:has(.lb-card__cta) {
+  padding-bottom: calc(
+    var(--lb-cta-bottom) + var(--lb-cta-h) + var(--lb-cta-gap)
+  );
 }
 
 .lb-card__object-wrap {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  /* Grow to absorb the free space above the bottom-pinned title. */
+  flex: 1 1 auto;
+}
+
+/* Chain objects bundle a tall chain+ball image. Reserve ONLY the ball's square
+   (height = --lb-obj-w) as a fixed box and bottom-anchor the taller image so the
+   chain overflows upward (clipped at the card top) instead of pushing the title
+   down. This keeps the bottom padding stable no matter how big the ball is.
+   --lb-obj-shift then nudges the ball to the exact design height. */
+.lb-card--chain .lb-card__object-wrap {
+  flex: 0 0 auto;
+  height: calc(var(--lb-card-width) / 208 * var(--lb-obj-w));
+  align-items: flex-end;
+  overflow: visible;
+}
+
+/* Static history glow (other.webp): fixed card-relative anchor so prize /
+   missed / prediction previous cards align even when chain changes wrap height. */
+.lb-card__glow {
+  position: absolute;
+  left: 50%;
+  top: 45.5%;
+  transform: translate(-50%, -50%);
+  width: var(--lb-card-width);
+  height: var(--lb-card-width);
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lb-card__glow .lb-card__light {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
 }
 
 .lb-card__light {
@@ -349,8 +394,23 @@ button.lb-card:active {
   user-select: none;
 }
 
-/* Ready-to-open sunburst is wider than the "other" radial glow. */
+/* Ready sunburst asset: size only. Position follows the card layout axis —
+   chain cards anchor glow to the top (disco on a chain); centered cards keep
+   the default .lb-card__light centering behind the object. */
 .lb-card__light--ready {
+  width: calc(var(--lb-card-width) / 208 * 300);
+  height: calc(var(--lb-card-width) / 208 * 300);
+}
+
+/* Rotating locked glow (next-up card): glow-locked.svg has a 250 viewBox whose
+   rays are internally scaled down (ts 0.4–0.55 × the 1.3 outer matrix), so its
+   bright star fills LESS of the box than the square other.webp does. Sizing the
+   box to the same 300-unit span as the ready sunburst makes the visible rotating
+   rays match the static glow's on-card footprint — and, being a plain box size,
+   it keeps the .lb-card__light translate(-50%,-50%) centering (a transform:scale
+   would overwrite that translate and de-center the rays). Stays responsive since
+   it scales with --lb-card-width. */
+.lb-card__light--locked {
   width: calc(var(--lb-card-width) / 208 * 300);
   height: calc(var(--lb-card-width) / 208 * 300);
 }
@@ -363,35 +423,444 @@ button.lb-card:active {
   object-fit: contain;
   pointer-events: none;
   user-select: none;
+  /* Width is per-state via --lb-obj-w (units of the 208 design grid). Chain
+     assets bundle chain+ball, so their width differs from the ball-only rasters
+     — values are tuned so the visible BALL matches the mockup. */
+  width: calc(var(--lb-card-width) / 208 * var(--lb-obj-w, 128));
 }
 
-.lb-card__object--lg {
-  width: calc(var(--lb-card-width) / 208 * 144);
+/* Per-state object sizing/position. Two independent knobs:
+     --lb-obj-w     object WIDTH (208-grid units), tuned so the visible ball
+                    matches the mockup width for that state.
+     --lb-obj-shift vertical nudge (translateY on .lb-card__object-wrap):
+                    positive = down, negative = up. For chain cards it lifts the
+                    ball out of the tall chain+ball image; for non-chain cards it
+                    nudges the flex-centered object to its target height. Using
+                    translateY keeps the bottom-pinned title untouched and stays
+                    GPU-cheap; no artwork re-export needed. Ball center for a
+                    chain card ≈ obj-w/2 + shift. */
+.lb-card--available {
+  --lb-obj-w: 166;
+  --lb-obj-shift: 63;
+}
+.lb-card--locked {
+  --lb-obj-w: 176;
+  --lb-obj-shift: 15; /* lock center -> ~48% */
+}
+.lb-card--prize {
+  --lb-obj-w: 130;
+  --lb-obj-shift: 11; /* prize art center -> ~47% */
+}
+.lb-card--prize.lb-card--active {
+  --lb-obj-w: 136;
+  /* Active card is scaled to the 320 today-size and reserves the CTA footer, so
+     its flex baseline differs from history — needs its own shift to land the
+     art at ~45%. */
+  --lb-obj-shift: 22;
+}
+.lb-card--missed {
+  --lb-obj-w: 161;
+  --lb-obj-shift: 56;
+}
+.lb-card--prediction {
+  --lb-obj-w: 166;
+  --lb-obj-shift: 43;
+}
+/* Active prediction: same full ball (166) and same shift as history, so the two
+   read consistently. */
+.lb-card--prediction.lb-card--active {
+  --lb-obj-w: 166;
+  --lb-obj-shift: 43;
 }
 
-.lb-card__object--md {
-  width: calc(var(--lb-card-width) / 208 * 128);
+/* Chain objects: lift/lower the ball independently of its width. */
+.lb-card--chain .lb-card__object-wrap {
+  transform: translateY(
+    calc(var(--lb-card-width) / 208 * var(--lb-obj-shift, 0))
+  );
+}
+
+/* Non-chain objects (locked / prize): flex centers them, then --lb-obj-shift
+   nudges DOWN to the exact target vertical position. translateY (not top/padding)
+   keeps the bottom-pinned title untouched and stays GPU-cheap, and since the glow
+   lives INSIDE the wrap here it moves in perfect sync with the object. */
+.lb-card:not(.lb-card--chain) .lb-card__object-wrap {
+  transform: translateY(
+    calc(var(--lb-card-width) / 208 * var(--lb-obj-shift, 0))
+  );
+}
+
+/* Animated disco ball (available): the looping AVIF/WebP crossfades in over the
+   static PNG poster once decoded (progressive loading). Poster and animation
+   share the 288/460 aspect ratio, so they align exactly during the crossfade. */
+.lb-card__object--disco {
+  position: relative;
+  aspect-ratio: 288 / 460;
+}
+
+.lb-card__object--disco .lb-card__poster,
+.lb-card__object--disco .lb-card__anim,
+.lb-card__object--disco .lb-card__anim img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.lb-card__poster {
+  transition: opacity 240ms ease;
+}
+
+.lb-card__object--disco .lb-card__anim {
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.lb-card__object--disco.is-anim-loaded .lb-card__anim {
+  opacity: 1;
+}
+
+.lb-card__object--disco.is-anim-loaded .lb-card__poster {
+  opacity: 0;
+}
+
+/* Click hint — tapping hand on the available card (idle nudge). Sits low and
+   slightly right of center, matching the design. Hidden once the card opens. */
+.lb-card__hand {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: calc(var(--lb-card-width) / 208 * -19);
+  width: calc(var(--lb-card-width) / 208 * 50);
+  height: auto;
+  transform: translateX(-50%);
+  pointer-events: none;
+  user-select: none;
+}
+
+.lb-card--opening .lb-card__hand {
+  display: none;
+}
+
+/* --- Open sequence: two phases (see OPEN_ANIMATION in constants.js) ---------
+   Phase 1 CHARGE  (.lb-card--charging): disco ball pulses while awaiting the
+                    backend result — masks latency, loops indefinitely.
+   Phase 2 REVEAL  (.lb-card--revealing): full-card flash covers the card; at
+                    its peak the content is swapped underneath; confetti bursts
+                    for prize only. */
+
+/* Keep the card clipped during the whole open sequence: the chain-suspended ball
+   overflows its box upward, and the flash overlay is inset:0 (card bounds). If the
+   card were overflow:visible, that chain would poke ABOVE the flash and not be
+   covered. Confetti live inside .lb-card__open-fx (its own overflow:hidden), so
+   clipping the card does not affect them. */
+.lb-card--opening {
+  overflow: hidden;
+}
+
+/* No re-clicks once the flash reveal has started. */
+.lb-card--revealing {
+  pointer-events: none;
+}
+
+/* Phase 1 — the ball "charges up": a gentle scale pulse that can loop for as
+   long as the backend takes to answer. */
+.lb-card--charging .lb-card__object-wrap {
+  animation: lb-charge 900ms ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Keep the chain --lb-obj-shift baked into every frame, otherwise `transform`
+   here would wipe the translateY and the ball would snap down while charging. */
+@keyframes lb-charge {
+  0%,
+  100% {
+    transform: translateY(
+        calc(var(--lb-card-width) / 208 * var(--lb-obj-shift, 0))
+      )
+      scale(1);
+  }
+  50% {
+    transform: translateY(
+        calc(var(--lb-card-width) / 208 * var(--lb-obj-shift, 0))
+      )
+      scale(1.06);
+  }
+}
+
+/* "Next up" locked card: the padlock periodically jitters as if straining to
+   open (a rest beat, then a quick shake), pairing with its rotating glow. The
+   nudge is on .lb-card__object (not the wrap) so it never clobbers the wrap's
+   --lb-obj-shift translateY. */
+.lb-card--next .lb-card__object {
+  animation: lb-lock-nudge 2400ms ease-in-out infinite;
+  transform-origin: center 42%;
+}
+
+@keyframes lb-lock-nudge {
+  0%,
+  60%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  66% {
+    transform: scale(1.05) rotate(-5deg);
+  }
+  72% {
+    transform: scale(1.05) rotate(5deg);
+  }
+  78% {
+    transform: scale(1.05) rotate(-4deg);
+  }
+  84% {
+    transform: scale(1.03) rotate(3deg);
+  }
+  90% {
+    transform: scale(1.02) rotate(-1deg);
+  }
+}
+
+/* Phase 2 overlay: sits on top and survives the content swap underneath.
+   border-radius:inherit so flash/veil children (which inherit from here) match
+   the card's rounded corners instead of resolving to 0. overflow stays visible
+   so confetti can spill past the card edges during the burst. */
+.lb-card__open-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Graceful outro: the overlay (spent flash/veil + confetti) fades out instead of
+   being cut from the DOM. ease-out (not ease-in) so opacity eases DOWN to zero
+   without the late snap an accelerating curve produces. Duration must match
+   OPEN_ANIMATION.FADE_OUT_MS. */
+.lb-card__open-fx.is-out {
+  animation: lb-fx-out 700ms ease-out forwards;
+}
+
+/* Prediction reveal: soften the pure-white prize flash to a calmer, dimmed
+   burst. brightness() < 1 lowers luminance while preserving each layer's alpha,
+   so the covered card content never shows through (unlike opacity). Applied to
+   the whole overlay; the swapped-in art is a sibling, so it stays untouched. */
+.lb-card__open-fx--dim {
+  filter: brightness(0.62) saturate(0);
+}
+
+/* TEMP debug: confetti stay on screen; hide spent flash/veil for positioning. */
+.lb-card__open-fx--freeze .lb-card__flash,
+.lb-card__open-fx--freeze .lb-card__flash-veil {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.lb-card__open-fx--freeze .lb-card__confetti {
+  opacity: 1;
+  animation: none;
+}
+
+@keyframes lb-fx-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Designer's full-card flash burst (self-animated SVG). Decorative sparkle.
+   Sits ABOVE the confetti (z-index 3 > 1) so the confetti stay hidden under the
+   white cover and are only revealed as the flash/veil fade away. */
+.lb-card__flash {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* White veil we control precisely: guarantees the card is fully covered at the
+   swap moment (peak ~SWAP_AT_MS), then fades to reveal the final art. */
+.lb-card__flash-veil {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgba(255, 255, 255, 1),
+    rgba(255, 255, 255, 0.85) 55%,
+    rgba(255, 255, 255, 0) 80%
+  );
+  opacity: 0;
+  z-index: 2;
+}
+
+.lb-card__open-fx.is-active .lb-card__flash-veil {
+  animation: lb-flash-veil 900ms ease-out forwards;
+}
+
+@keyframes lb-flash-veil {
+  0% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Confetti (prize reveal only): three party-popper bursts mirroring the mockup
+   (active card frame = 208×320). The popper asset is square like our 160×160
+   confetti.svg, so each layer maps 1:1 onto its element box — left/top/width
+   taken from the mockup and expressed in the card's container unit
+   (calc(var(--lb-card-width) / 208 * N)) so they scale with the card. Poppers
+   intentionally spill past the left/right card edges. */
+.lb-card__confetti {
+  position: absolute;
+  height: auto;
+  opacity: 0;
+  animation: lb-confetti-in 500ms ease-out forwards;
+  /* Below the veil (2) and flash (3): confetti animate hidden under the white
+     cover and surface as it fades, instead of popping on top of the flash. */
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Lower-left burst — largest, spills off the left edge. */
+.lb-card__confetti--1 {
+  left: calc(var(--lb-card-width) / 208 * -12);
+  top: calc(var(--lb-card-width) / 208 * 146);
+  width: calc(var(--lb-card-width) / 208 * 94);
+  animation-delay: 0ms;
+}
+
+/* Upper-right burst — medium, spills off the right edge. */
+.lb-card__confetti--2 {
+  left: calc(var(--lb-card-width) / 208 * 123);
+  top: calc(var(--lb-card-width) / 208 * 4);
+  width: calc(var(--lb-card-width) / 208 * 74);
+  animation-delay: 80ms;
+}
+
+/* Lower-right burst — smallest, spills off the right edge. Mirrored (scaleX(-1))
+   so its blast points left/into the card, matching the mockup where this popper
+   fires the opposite way from the other two. */
+.lb-card__confetti--3 {
+  left: calc(var(--lb-card-width) / 208 * 138);
+  top: calc(var(--lb-card-width) / 208 * 166);
+  width: calc(var(--lb-card-width) / 208 * 56);
+  transform: scaleX(-1);
+  animation-delay: 160ms;
+}
+
+@keyframes lb-confetti-in {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Accessibility: honor reduced-motion. Animated <img> SVG/AVIF play inside
+   their own document and can't be paused here, so we drop our CSS motion and
+   keep the reveal instant (no charge pulse, no white veil, no confetti). */
+@media (prefers-reduced-motion: reduce) {
+  .lb-card__object--disco .lb-card__anim {
+    display: none;
+  }
+  .lb-card__object--disco .lb-card__poster {
+    opacity: 1;
+  }
+  .lb-card__hand {
+    display: none;
+  }
+  .lb-card--charging .lb-card__object-wrap {
+    animation: none;
+  }
+  .lb-card--next .lb-card__object {
+    animation: none;
+  }
+  .lb-card__flash,
+  .lb-card__flash-veil {
+    display: none;
+  }
+  .lb-card__confetti {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 .lb-card__title {
   position: relative;
   z-index: 1;
-  margin: 0;
+  /* Pin the title to the bottom of the content: margin-top:auto eats the free
+     space, so the title always sits --lb-pad-bottom above the edge no matter how
+     tall the object/ball-box is. */
+  margin: auto 0 0;
   font-weight: 700;
-  font-size: calc(var(--lb-card-width) / 208 * 16);
+  font-size: calc(var(--lb-card-width) / 208 * 15);
   line-height: 1.1;
   color: var(--lb-text);
   word-break: break-word;
 }
 
+/* Today's available card teaser: lift the whole content layer above the
+   tapping-hand hint (z-index 4) so the teaser copy is never covered. */
+.lb-card--available .lb-card__content {
+  z-index: 5;
+}
+
+/* Today's available card teaser: extra bottom breathing room for the two-line
+   copy. Overrides the global --lb-pad-bottom (29). */
+.lb-card--available {
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 37);
+}
+
+/* Today's available card teaser: 20px bold, two centred rows
+   ("Click & see" / "what's inside"), text-shadow. Scoped to .lb-card--available
+   (state class) rather than :not(.lb-card--opening): the copy must stay stable
+   through the charge phase and only fall away when the reveal swaps the state
+   class to prize/prediction — under the white flash, so no visible font jump. */
+.lb-card--available .lb-card__title {
+  font-size: calc(var(--lb-card-width) / 208 * 20);
+  line-height: calc(var(--lb-card-width) / 208 * 25);
+  max-width: calc(var(--lb-card-width) / 208 * 145);
+  white-space: pre-line;
+  text-shadow: 0 calc(var(--lb-card-width) / 208 * 4)
+    calc(var(--lb-card-width) / 208 * 4) rgba(37, 7, 53, 0.5);
+}
+
+/* CTA (active prize / prediction): full-width button pinned to the card bottom
+   (100% width minus 16u padding each side, 32u tall, 16u from the bottom edge in
+   the 208×320 active frame). Absolutely positioned so it never competes with the
+   centered object/title flow. */
 .lb-card__cta {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--lb-card-width) / 208 * 16);
+  right: calc(var(--lb-card-width) / 208 * 16);
+  bottom: var(--lb-cta-bottom);
+  box-sizing: border-box;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: calc(var(--lb-card-width) / 208 * 8)
-    calc(var(--lb-card-width) / 208 * 16);
+  height: var(--lb-cta-h);
+  padding: 0 calc(var(--lb-card-width) / 208 * 16);
   border-radius: var(--lb-radius-pill);
   background: var(--lb-cta-bg);
   color: var(--lb-cta-text);
@@ -404,9 +873,9 @@ button.lb-card:active {
 .lb-card__badges {
   position: absolute;
   z-index: 3;
-  top: calc(var(--lb-card-width) / 208 * 16);
-  left: calc(var(--lb-card-width) / 208 * 16);
-  right: calc(var(--lb-card-width) / 208 * 16);
+  top: calc(var(--lb-card-width) / 208 * 13);
+  left: calc(var(--lb-card-width) / 208 * 13);
+  right: calc(var(--lb-card-width) / 208 * 13);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -422,17 +891,29 @@ button.lb-card:active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: calc(var(--lb-card-width) / 208 * 16);
-  padding: 0 calc(var(--lb-card-width) / 208 * 8);
+  padding: calc(var(--lb-card-width) / 208 * 4)
+    calc(var(--lb-card-width) / 208 * 8);
   border-radius: var(--lb-radius-pill);
+  font-weight: 400;
+  font-size: calc(var(--lb-card-width) / 208 * 11);
+  line-height: calc(var(--lb-card-width) / 208 * 14.3);
+  white-space: nowrap;
+}
+
+/* Date badge — filled pill with blur (Basic Badge/Default). */
+.lb-card__badge--filled {
   background: var(--lb-badge-bg);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   color: var(--lb-badge-text);
-  font-weight: 700;
-  font-size: calc(var(--lb-card-width) / 208 * 10);
-  line-height: calc(var(--lb-card-width) / 208 * 17);
-  white-space: nowrap;
+}
+
+/* Status badge — outline pill, no fill (Timer): "Opened" / "Not opened". */
+.lb-card__badge--outline {
+  background: transparent;
+  border: 1px solid var(--lb-badge-outline-border);
+  color: var(--lb-badge-outline-text);
+  line-height: calc(var(--lb-card-width) / 208 * 14.85);
 }
 
 /* Loading placeholder: solid background, centered logo at reduced opacity. */

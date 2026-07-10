@@ -1,14 +1,16 @@
-# Vegas Lootboxes — Fortune Drops iFrame Widget (draft)
+# Vegas Lootboxes — iFrame Widget (draft)
 
-Draft iFrame widget for the Vegas Lootboxes ("Fortune Drops") cards row, built so the
+Draft iFrame widget for the Vegas Lootboxes cards row, built so the
 Front-End team can start integration without waiting on the final animation/visual design.
 
 **Stack: plain HTML, CSS and JavaScript. No runtime frameworks.** The widget runs
 directly as static files — no build step is required. The `esbuild`/Node scripts in this
 repo are optional developer conveniences only (local dev server, minified bundle).
 
-Full integration contract (query parameters, `postMessage` events, examples) is
-documented on the sandbox test page and mirrored in [`INTEGRATION.md`](./INTEGRATION.md).
+The full integration contract (data passing, `postMessage` protocol, open-card
+flow, examples) lives in [`INTEGRATION.md`](./INTEGRATION.md) — the single source of
+truth for integrators. The sandbox at `lootbox-test/index.html` is an interactive
+playground to exercise that contract by hand.
 
 ## Project structure
 
@@ -23,11 +25,11 @@ vegas-lootboxes/
 │  ├─ widget.css
 │  ├─ widget.js         # bootstraps the widget
 │  └─ modules/          # protocol + rendering modules (ES modules)
-├─ lootbox-test/        # integration sandbox (parent-page emulator + docs)
+├─ lootbox-test/        # integration sandbox (parent-page emulator)
 │  ├─ index.html
 │  └─ test.js           # loads the widget from ../lootbox/index.html
 ├─ scripts/             # optional dev tooling (serve/build), not shipped
-├─ INTEGRATION.md       # short integration guide (mirror of the sandbox docs)
+├─ INTEGRATION.md       # canonical integration contract (single source of truth)
 └─ package.json
 ```
 
@@ -111,7 +113,22 @@ would be the natural next step once bucket/profile naming conventions are confir
 
 ## Scope
 
-See [`INTEGRATION.md`](./INTEGRATION.md) and the docs section on the sandbox page for what
-is/isn't covered. In short: card states, scalable card count, navigation, the full
-`postMessage` protocol and skeleton loading are implemented. Final art and the final
-open animation are explicitly out of scope for this task (draft transition only).
+See [`INTEGRATION.md`](./INTEGRATION.md) for the full contract. In short: card states,
+scalable card count, navigation, the full `postMessage` protocol and skeleton loading
+are implemented.
+
+The **final motion-designer animations** are integrated: the spinning disco ball
+(animated AVIF with WebP fallback, 1×/2×), rotating glow, the tapping-hand click hint, and
+a **two-phase open sequence** whose reveal is driven by the backend result:
+
+- **Phase 1 — charge** (on `cardClick`): the disco ball pulses in a loop, masking backend
+  latency while the parent fetches the result.
+- **Phase 2 — flash reveal** (on `setCardState`): a full-card flash covers the card and, at
+  its peak, the content is swapped underneath to the final art — so the prize/prediction
+  appears from inside the flash. Confetti bursts **only for `prize`**. Then `animationComplete`
+  fires (popup time).
+
+This keeps the flash "magic" (it hides the swap) and handles slow backends without any
+infinite animation. The parent must start its API request on `cardClick` (see
+[`INTEGRATION.md`](./INTEGRATION.md)). Animations respect `prefers-reduced-motion`.
+Animation assets live under `lootbox/assets/images/animations/`.

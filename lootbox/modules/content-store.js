@@ -11,7 +11,7 @@
  * @property {string} date e.g. "1 Mar"
  * @property {string} title
  * @property {string} cta e.g. "Go to Bonuses" (prize state)
- * @property {string} tag status badge override ("Opened" / "Missed")
+ * @property {string} tag status badge override ("Opened" / "Not opened")
  * @property {'bonus-money'|'cash'|'coin'|'free-spins'|''} [prizeType] prize art selector
  * @property {boolean} [active] true = today's just-opened result (glow variant)
  */

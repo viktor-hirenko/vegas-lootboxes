@@ -56,17 +56,18 @@ const EXAMPLE_CARDS = [
 /** Delay before setContent when "late backend" is enabled (skeleton demo). */
 const LATE_BACKEND_DELAY_MS = 2000
 
-/** Delay after animationComplete before mock setCardState (open-card API demo). */
-const OPEN_BACKEND_DELAY_MS = 1200
-
-/** Default prize payload when the sidebar card has no title/prizeType yet. */
+/** Default prize payload when the mock config leaves fields blank. */
 const DEFAULT_OPEN_PRIZE = {
-  state: 'prize',
   title: '20 CAD bonus',
-  prizeType: 'bonus-money',
+  prizeType: 'coin',
   cta: 'Go to Bonuses',
   tag: 'Opened',
-  active: true,
+}
+
+/** Default prediction payload for the mock backend panel. */
+const DEFAULT_OPEN_PREDICTION = {
+  title: 'Something is waiting for you in the future',
+  cta: 'Show prediction',
 }
 
 /** Card ids/indexes currently waiting on the mock open API. */
@@ -79,6 +80,18 @@ const state = {
   lateBackend: false,
   viewport: 'desktop',
   cards: JSON.parse(JSON.stringify(EXAMPLE_CARDS)),
+  // Mock backend: what the "API" returns when an available card is clicked.
+  // The sandbox listens for cardClick and, after `delayMs`, sends setCardState —
+  // exactly what a real parent page does once its backend responds.
+  mock: {
+    enabled: true,
+    outcome: 'prize', // 'prize' | 'prediction'
+    prizeType: 'coin',
+    title: '',
+    cta: '',
+    tag: '',
+    delayMs: 1200,
+  },
 }
 
 // --- DOM refs ----------------------------------------------------------
@@ -158,14 +171,18 @@ function findCardIndexFromEvent(data) {
 }
 
 /**
- * After draft open animation ends: mock API → setCardState(prize).
- * Popup UI is the parent FE's responsibility — sandbox only logs events.
+ * Mock backend: fires on `cardClick` for an available card. After the configured
+ * delay it sends `setCardState` with the chosen outcome — mirroring a real parent
+ * page that calls its API on click and pushes the result when it resolves. The
+ * widget charges while waiting, then flashes the result in.
  * @param {{ id?: string|number, index?: number, state?: string }} data
  */
-function mockOpenBackendAfterAnimation(data) {
+function scheduleMockBackend(data) {
+  if (!state.mock.enabled) return
+  if (data?.state && data.state !== 'available') return
+
   const key = String(data?.id ?? data?.index ?? '')
   if (!key || openInFlight.has(key)) return
-  if (data?.state && data.state !== 'available') return
 
   const cardIndex = findCardIndexFromEvent(data)
   if (cardIndex < 0) return
@@ -173,40 +190,49 @@ function mockOpenBackendAfterAnimation(data) {
   const card = state.cards[cardIndex]
   if (card.state !== 'available') return
 
+  const { outcome, delayMs } = state.mock
   openInFlight.add(key)
-  log('info', `mock backend: waiting ${OPEN_BACKEND_DELAY_MS}ms after animationComplete`)
+  log('info', `mock backend: outcome="${outcome}", replying in ${delayMs}ms`)
 
   window.setTimeout(() => {
     openInFlight.delete(key)
-
     const id = String(data.id ?? cardIndex + 1)
-    const title = card.title || DEFAULT_OPEN_PRIZE.title
-    const prizeType = card.prizeType || DEFAULT_OPEN_PRIZE.prizeType
-    const cta = card.cta || DEFAULT_OPEN_PRIZE.cta
-    const tag = card.tag || DEFAULT_OPEN_PRIZE.tag
 
-    Object.assign(card, {
-      state: 'prize',
-      title,
-      prizeType,
-      cta,
-      tag,
-      active: true,
-    })
-    renderCardRows()
+    if (outcome === 'prediction') {
+      const title = state.mock.title || DEFAULT_OPEN_PREDICTION.title
+      const cta = state.mock.cta || DEFAULT_OPEN_PREDICTION.cta
+      Object.assign(card, { state: 'prediction', title, cta, active: true })
+      renderCardRows()
+      postToWidget('setCardState', {
+        index: cardIndex + 1,
+        id,
+        state: 'prediction',
+        title,
+        cta,
+        date: card.date || undefined,
+        active: true,
+      })
+    } else {
+      const prizeType = state.mock.prizeType || DEFAULT_OPEN_PRIZE.prizeType
+      const title = state.mock.title || DEFAULT_OPEN_PRIZE.title
+      const cta = state.mock.cta || DEFAULT_OPEN_PRIZE.cta
+      const tag = state.mock.tag || DEFAULT_OPEN_PRIZE.tag
 
-    postToWidget('setCardState', {
-      index: cardIndex + 1,
-      id,
-      state: 'prize',
-      title,
-      prizeType,
-      cta,
-      tag,
-      date: card.date || undefined,
-      active: true,
-    })
-  }, OPEN_BACKEND_DELAY_MS)
+      Object.assign(card, { state: 'prize', title, prizeType, cta, tag, active: true })
+      renderCardRows()
+      postToWidget('setCardState', {
+        index: cardIndex + 1,
+        id,
+        state: 'prize',
+        title,
+        prizeType,
+        cta,
+        tag,
+        date: card.date || undefined,
+        active: true,
+      })
+    }
+  }, delayMs)
 }
 
 const LOG_DIRECTION_LABEL = {
@@ -277,11 +303,12 @@ function cardRowTemplate(card, index) {
         <label class="card-row__check"><input type="checkbox" data-field="active" ${card.active ? 'checked' : ''} /> active (сьогодні)</label>
         <input type="text" data-field="title" placeholder="Заголовок" value="${escapeHtml(card.title)}" style="grid-column: span 2" />
         <input type="text" data-field="cta" placeholder="CTA (лише prize)" value="${escapeHtml(card.cta)}" />
-        <input type="text" data-field="tag" placeholder="Бейдж статусу (Opened/Missed)" value="${escapeHtml(card.tag)}" />
+        <input type="text" data-field="tag" placeholder="Бейдж статусу (Opened/Not opened)" value="${escapeHtml(card.tag)}" />
       </div>
       <div class="card-row__actions">
         <button type="button" class="btn btn-secondary btn-sm" data-action="apply-state">Надіслати setCardState</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-action="play-open" style="opacity: 0.65">playOpen (тест)</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-action="play-open-prize" style="opacity: 0.65">playOpen (prize)</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-action="play-open-prediction" style="opacity: 0.65">playOpen (prediction)</button>
       </div>
     </div>
   `
@@ -330,8 +357,12 @@ cardRowsEl.addEventListener('click', event => {
     })
   }
 
-  if (button.dataset.action === 'play-open') {
-    postToWidget('playOpen', { index: index + 1 })
+  if (button.dataset.action === 'play-open-prize') {
+    postToWidget('playOpen', { index: index + 1, state: 'prize' })
+  }
+
+  if (button.dataset.action === 'play-open-prediction') {
+    postToWidget('playOpen', { index: index + 1, state: 'prediction' })
   }
 })
 
@@ -412,6 +443,79 @@ function setViewport(mode) {
 desktopBtn.addEventListener('click', () => setViewport('desktop'))
 mobileBtn.addEventListener('click', () => setViewport('mobile'))
 
+// --- Mock backend panel ----------------------------------------------------
+
+const mockEnabledInput = document.getElementById('mock-enabled')
+const mockOutcomeInput = document.getElementById('mock-outcome')
+const mockPrizeFields = document.getElementById('mock-prize-fields')
+const mockPrizeTypeInput = document.getElementById('mock-prize-type')
+const mockTitleInput = document.getElementById('mock-title')
+const mockCtaInput = document.getElementById('mock-cta')
+const mockTagInput = document.getElementById('mock-tag')
+const mockDelayInput = document.getElementById('mock-delay')
+const mockDelayVal = document.getElementById('mock-delay-val')
+
+/** Prize-only fields (prize type, badge) are irrelevant for a prediction
+ * outcome — dim just those. Title + CTA stay editable for both, since an active
+ * prediction now also carries a heading and a button. */
+function syncMockPrizeFieldsVisibility() {
+  if (!mockPrizeFields) return
+  const isPrize = state.mock.outcome === 'prize'
+  mockPrizeFields.querySelectorAll('[data-prize-only]').forEach((el) => {
+    el.style.opacity = isPrize ? '1' : '0.4'
+    el.style.pointerEvents = isPrize ? 'auto' : 'none'
+  })
+}
+
+/** When the mock outcome changes, pre-fill title + CTA with that outcome's defaults. */
+function syncMockOutcomeDefaults() {
+  const defaults =
+    state.mock.outcome === 'prediction' ? DEFAULT_OPEN_PREDICTION : DEFAULT_OPEN_PRIZE
+  state.mock.title = defaults.title
+  state.mock.cta = defaults.cta
+  if (mockTitleInput) mockTitleInput.value = defaults.title
+  if (mockCtaInput) mockCtaInput.value = defaults.cta
+}
+
+mockEnabledInput?.addEventListener('change', () => {
+  state.mock.enabled = mockEnabledInput.checked
+})
+mockOutcomeInput?.addEventListener('change', () => {
+  state.mock.outcome = mockOutcomeInput.value
+  syncMockOutcomeDefaults()
+  syncMockPrizeFieldsVisibility()
+})
+mockPrizeTypeInput?.addEventListener('change', () => {
+  state.mock.prizeType = mockPrizeTypeInput.value
+})
+mockTitleInput?.addEventListener('input', () => {
+  state.mock.title = mockTitleInput.value
+})
+mockCtaInput?.addEventListener('input', () => {
+  state.mock.cta = mockCtaInput.value
+})
+mockTagInput?.addEventListener('input', () => {
+  state.mock.tag = mockTagInput.value
+})
+mockDelayInput?.addEventListener('input', () => {
+  state.mock.delayMs = Number(mockDelayInput.value)
+  if (mockDelayVal) mockDelayVal.textContent = mockDelayInput.value
+})
+
+function fillMockInputs() {
+  if (mockEnabledInput) mockEnabledInput.checked = state.mock.enabled
+  if (mockOutcomeInput) mockOutcomeInput.value = state.mock.outcome
+  if (mockPrizeTypeInput) mockPrizeTypeInput.value = state.mock.prizeType
+  // Empty title/cta on first load → show defaults for the selected outcome.
+  if (!state.mock.title && !state.mock.cta) syncMockOutcomeDefaults()
+  if (mockTitleInput) mockTitleInput.value = state.mock.title
+  if (mockCtaInput) mockCtaInput.value = state.mock.cta
+  if (mockTagInput) mockTagInput.value = state.mock.tag
+  if (mockDelayInput) mockDelayInput.value = String(state.mock.delayMs)
+  if (mockDelayVal) mockDelayVal.textContent = String(state.mock.delayMs)
+  syncMockPrizeFieldsVisibility()
+}
+
 // --- Incoming messages from the widget ------------------------------------
 
 window.addEventListener('message', event => {
@@ -435,14 +539,20 @@ window.addEventListener('message', event => {
     }, LATE_BACKEND_DELAY_MS)
   }
 
-  // First open: animation finished → mock API → setCardState (no popup in sandbox).
-  if (type === 'animationComplete') {
-    mockOpenBackendAfterAnimation(data)
+  // Card click on `available`: the parent starts its API request NOW (on click,
+  // not on animationComplete). Sandbox simulates it via the mock backend, which
+  // replies with setCardState after the configured delay.
+  if (type === 'cardClick') {
+    scheduleMockBackend(data)
   }
+
+  // animationComplete now fires AFTER the flash reveal — the moment for the FE
+  // to open its result popup. Sandbox only logs it (no popup here).
 })
 
 // --- Boot -------------------------------------------------------------------
 
 fillGlobalInputs()
+fillMockInputs()
 renderCardRows()
 reloadIframe()
