@@ -18,7 +18,10 @@ const trackEl = document.querySelector('[data-lb-track]');
 
 const initialParams = parseWidgetParams();
 
-const bus = createMessageBus({ allowedOrigin: initialParams.origin });
+const bus = createMessageBus({
+  allowedOrigin: initialParams.origin,
+  debug: initialParams.debug,
+});
 
 const store = createContentStore({
   cards: initialParams.cards,
@@ -301,7 +304,11 @@ observeResize(rootEl, (height) => {
 bus.postToParent(MESSAGE_TYPES.READY, { count: initialParams.cards.length });
 
 if (initialParams.debug) {
-  window.__lootboxWidget = { store, bus };
+  const originInfo = bus.isStrict ? bus.origin : '(permissive *)';
+  window.__lootboxWidget = { store, bus, origin: originInfo, strict: bus.isStrict };
   // eslint-disable-next-line no-console
-  console.info('[vegas-lootboxes-widget] debug mode — window.__lootboxWidget exposed', store.get());
+  console.info(
+    '[vegas-lootboxes-widget] debug mode — window.__lootboxWidget exposed',
+    { origin: originInfo, strict: bus.isStrict, content: store.get() },
+  );
 }

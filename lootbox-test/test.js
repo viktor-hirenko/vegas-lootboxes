@@ -75,7 +75,9 @@ const openInFlight = new Set()
 
 const state = {
   lang: 'en',
-  origin: '',
+  // Pass our own origin to the widget so it locks postMessage to this page
+  // (strict mode). Empty under file://, where the widget stays permissive.
+  origin: HAS_STRICT_ORIGIN ? WIDGET_ORIGIN : '',
   debug: false,
   lateBackend: false,
   viewport: 'desktop',
@@ -110,6 +112,15 @@ const globalInputs = document.querySelectorAll('[data-global]')
 // The widget always lives in the sibling `lootbox/` folder — same layout in
 // the repo, in `dist/`, and on the CDN under `widgets-smartico/`.
 const WIDGET_ENTRY_PATH = '../lootbox/index.html'
+
+// Origin the widget iframe is served from. Since the entry path is relative,
+// this resolves to the sandbox's own origin. Used to target outgoing
+// postMessage and to filter incoming ones — exactly what a real parent page
+// must do instead of trusting/using '*'. Resolves to 'null' under file://,
+// where cross-window origin checks don't apply, so we fall back to '*' then.
+const WIDGET_ORIGIN = new URL(WIDGET_ENTRY_PATH, window.location.href).origin
+const HAS_STRICT_ORIGIN = WIDGET_ORIGIN && WIDGET_ORIGIN !== 'null'
+const WIDGET_TARGET_ORIGIN = HAS_STRICT_ORIGIN ? WIDGET_ORIGIN : '*'
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -256,7 +267,7 @@ function log(direction, type, data) {
 
 function postToWidget(type, data) {
   if (!iframe.contentWindow) return
-  iframe.contentWindow.postMessage({ type, data }, '*')
+  iframe.contentWindow.postMessage({ type, data }, WIDGET_TARGET_ORIGIN)
   log('sent', type, data)
 }
 
@@ -520,6 +531,7 @@ function fillMockInputs() {
 
 window.addEventListener('message', event => {
   if (event.source !== iframe.contentWindow) return
+  if (HAS_STRICT_ORIGIN && event.origin !== WIDGET_ORIGIN) return
   if (!event.data || typeof event.data !== 'object') return
 
   const { type, data } = event.data

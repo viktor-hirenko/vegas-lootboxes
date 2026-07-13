@@ -59,6 +59,10 @@ export const DEFAULT_SKELETON_COUNT = 5
  *   (prize art or prediction), so it appears *from within* the flash. Confetti
  *   bursts only for `prize`. When the flash finishes, `animationComplete` fires.
  *
+ * Tuned to the current SVGator `flash.svg` / `confetti.svg`. Replacing those
+ * assets → re-check and update these ms values (esp. `FLASH_SVG_MS`,
+ * `SWAP_AT_MS`, `CONFETTI_AT_MS`, `COMPLETE_AT_MS`).
+ *
  * IMPORTANT: because the reveal needs the result up-front, the parent must start
  * its API request on `cardClick` (not on `animationComplete`). See INTEGRATION.md. */
 export const OPEN_ANIMATION = Object.freeze({

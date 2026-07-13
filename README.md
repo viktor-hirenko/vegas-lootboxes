@@ -1,7 +1,8 @@
-# Vegas Lootboxes — iFrame Widget (draft)
+# Vegas Lootboxes — iFrame Widget
 
-Draft iFrame widget for the Vegas Lootboxes cards row, built so the
-Front-End team can start integration without waiting on the final animation/visual design.
+Production-shaped renderer for the Vegas Lootboxes cards row. Final animations are
+integrated; the `postMessage` contract is frozen — integrators should treat
+[`INTEGRATION.md`](./INTEGRATION.md) as the stable API.
 
 **Stack: plain HTML, CSS and JavaScript. No runtime frameworks.** The widget runs
 directly as static files — no build step is required. The `esbuild`/Node scripts in this
@@ -101,8 +102,8 @@ The sandbox loads the widget via the relative path `../lootbox/index.html`, so b
 folders must stay **siblings** under the same CDN prefix (e.g. both under
 `widgets-smartico/`).
 
-No automated deploy script was built for this draft (manual upload, same as other
-widgets on this CDN). If this becomes a recurring release, a follow-up script such as:
+Deploy is manual upload (same as other widgets on this CDN). If releases become
+recurring, a follow-up script such as:
 
 ```bash
 aws s3 sync ./dist/lootbox      s3://<bucket>/widgets-smartico/lootbox --delete
@@ -113,13 +114,13 @@ would be the natural next step once bucket/profile naming conventions are confir
 
 ## Scope
 
-See [`INTEGRATION.md`](./INTEGRATION.md) for the full contract. In short: card states,
-scalable card count, navigation, the full `postMessage` protocol and skeleton loading
-are implemented.
+See [`INTEGRATION.md`](./INTEGRATION.md) for the full contract. Status: **production-shaped,
+contract frozen.** Card states, scalable card count, navigation, the full `postMessage`
+protocol, skeleton loading, and final motion-designer animations are implemented.
 
-The **final motion-designer animations** are integrated: the spinning disco ball
-(animated AVIF with WebP fallback, 1×/2×), rotating glow, the tapping-hand click hint, and
-a **two-phase open sequence** whose reveal is driven by the backend result:
+Animations include the spinning disco ball (animated AVIF with WebP fallback, 1×/2×),
+rotating glow, the tapping-hand click hint, and a **two-phase open sequence** whose reveal
+is driven by the backend result:
 
 - **Phase 1 — charge** (on `cardClick`): the disco ball pulses in a loop, masking backend
   latency while the parent fetches the result.

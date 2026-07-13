@@ -42,9 +42,13 @@
 
 ```js
 const iframe = document.getElementById('lootbox-widget');
+// Origin, з якого віддається віджет (CDN-хост із src iframe).
+const WIDGET_ORIGIN = 'https://<cdn-host>';
 
-window.addEventListener('message', ({ source, data }) => {
-  if (source !== iframe.contentWindow || !data) return;
+window.addEventListener('message', ({ source, origin, data }) => {
+  if (source !== iframe.contentWindow) return;   // лише наш iframe
+  if (origin !== WIDGET_ORIGIN) return;          // лише очікуваний origin
+  if (!data) return;
   const { type, data: payload } = data;
 
   if (type === 'resize') {
@@ -56,6 +60,14 @@ window.addEventListener('message', ({ source, data }) => {
 
 Далі оберіть спосіб передачі даних карток (§3) і, якщо картки можна відкривати,
 реалізуйте сценарій відкриття (§4).
+
+> **⚠️ Безпека / Origin (обов'язково для проду).** У URL віджета **завжди**
+> передавайте `origin=` зі схемою та хостом батьківської сторінки
+> (напр. `origin=https%3A%2F%2Fyour-site.com`). Тоді віджет приймає команди
+> **лише** з цього origin і надсилає події **лише** на нього. Без валідного
+> `origin` віджет працює у **дозвільному** режимі (`*`) — прийнятно лише для
+> локальної пісочниці. З боку сторінки теж перевіряйте `event.origin`
+> (origin, з якого віддається iframe) і `event.source === iframe.contentWindow`.
 
 ## 2. Модель взаємодії
 
@@ -109,8 +121,9 @@ iframe.src =
   'https://<cdn-host>/widgets-smartico/lootbox/index.html?lang=en&origin=' +
   encodeURIComponent(location.origin);
 
-window.addEventListener('message', ({ source, data }) => {
+window.addEventListener('message', ({ source, origin, data }) => {
   if (source !== iframe.contentWindow) return;
+  if (origin !== 'https://<cdn-host>') return;   // лише очікуваний origin
 
   if (data?.type === 'ready') {
     iframe.contentWindow.postMessage(
@@ -191,8 +204,8 @@ sequenceDiagram
 > результат уже відкрито спалахом.
 >
 > ```js
-> window.addEventListener('message', ({ source, data: msg }) => {
->   if (source !== iframe.contentWindow || !msg) return;
+> window.addEventListener('message', ({ source, origin, data: msg }) => {
+>   if (source !== iframe.contentWindow || origin !== WIDGET_ORIGIN || !msg) return;
 >   const { type, data } = msg;
 >
 >   if (type === 'cardClick') {
@@ -238,7 +251,7 @@ sequenceDiagram
 |----------|---------|------------|------|
 | `lang`   | string  | `en`       | Код мови для локалізації та аналітики. |
 | `count`  | number  | —          | Гарантує рендер індексів `1..count` (пропущені = `locked`). |
-| `origin` | string  | `*`        | Origin батьківської сторінки (зі схемою) для обмеження `postMessage`. |
+| `origin` | string  | — (обов'язковий для проду) | Origin батьківської сторінки зі схемою (напр. `https://your-site.com`) для обмеження `postMessage`. Невалідний/відсутній → дозвільний режим (`*`), лише для пісочниці. Див. врізку в §1. |
 | `debug`  | boolean | `false`    | Відкриває `window.__lootboxWidget` у devtools. |
 
 ### Картка — `c{i}_*`
@@ -298,6 +311,11 @@ API — хоч кілька секунд.
 | Рука-підказка       | `available`                                                       | Idle-натяк «натисни», ховається після кліку. |
 | Зарядка кулі        | Фаза 1 (очікування API)                                           | Куля пульсує, поки чекаємо відповідь бекенду. |
 | Спалах (flash)      | Фаза 2                                                            | Повнокартковий спалах; на піку — підміна контенту на результат. |
+
+**Таймінги відкриття.** Значення в `OPEN_ANIMATION` (`lootbox/modules/constants.js`)
+підігнані під поточні SVGator-експорти `flash.svg` / `confetti.svg`. При заміні
+ассетів — звірити тривалість експорту і оновити насамперед `FLASH_SVG_MS`,
+`SWAP_AT_MS`, `CONFETTI_AT_MS`, `COMPLETE_AT_MS`.
 
 **Затримка бекенду.** Спалах одноразовий і починається **тільки** коли прийшов
 `setCardState` — тож він ніколи не «висить». Поки чекаємо, крутиться зарядка кулі.

@@ -6,18 +6,50 @@ function isPlainObject(value) {
 }
 
 /**
- * @param {object} [options]
- * @param {string} [options.allowedOrigin] restrict incoming messages to this
- *   origin (from the `origin` query param) and use it as the default target
- *   origin for outgoing messages. Falls back to '*' when not provided —
- *   acceptable for a draft/sandbox integration, tighten for production.
+ * Validate and canonicalize an origin (e.g. from the `origin` query param).
+ * Returns the canonical origin ("https://site.com") for a valid absolute URL,
+ * or '' when the value is missing/invalid or the wildcard '*'. An empty result
+ * means "no restriction" (permissive mode).
+ *
+ * @param {string} [rawOrigin]
+ * @returns {string}
  */
-export function createMessageBus({ allowedOrigin = '' } = {}) {
+export function normalizeOrigin(rawOrigin) {
+  if (!rawOrigin || rawOrigin === '*') return '';
+  try {
+    return new URL(rawOrigin).origin;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * @param {object} [options]
+ * @param {string} [options.allowedOrigin] parent origin (from the `origin` query
+ *   param). When it is a valid absolute origin the bus runs in **strict** mode:
+ *   incoming messages are accepted only from that origin, and outgoing messages
+ *   are targeted only at it. When missing/invalid the bus runs in **permissive**
+ *   mode ('*') — acceptable for the local sandbox, but production MUST pass a
+ *   valid `origin` so the widget is not addressable by arbitrary parents.
+ * @param {boolean} [options.debug] warn once when running in permissive mode.
+ */
+export function createMessageBus({ allowedOrigin = '', debug = false } = {}) {
+  const targetOrigin = normalizeOrigin(allowedOrigin);
+  const isStrict = targetOrigin !== '';
+
+  if (!isStrict && debug) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[vegas-lootboxes-widget] no valid `origin` param — postMessage runs in permissive mode (*). ' +
+        'Pass origin=<parent-origin> in the iframe URL for production.',
+    );
+  }
+
   const handlers = new Map();
 
   function isAllowedSource(event) {
     if (event.source !== window.parent) return false;
-    if (allowedOrigin && event.origin !== allowedOrigin) return false;
+    if (isStrict && event.origin !== targetOrigin) return false;
     return true;
   }
 
@@ -35,10 +67,11 @@ export function createMessageBus({ allowedOrigin = '' } = {}) {
     handlers.set(type, handler);
   }
 
-  /** Send a message to the parent window. No-op outside an iframe. */
-  function postToParent(type, data, targetOrigin = allowedOrigin || '*') {
+  /** Send a message to the parent window. No-op outside an iframe. In strict
+   * mode the message is targeted at the allowed origin; otherwise at '*'. */
+  function postToParent(type, data) {
     if (!window.parent || window.parent === window) return;
-    window.parent.postMessage({ type, data }, targetOrigin);
+    window.parent.postMessage({ type, data }, isStrict ? targetOrigin : '*');
   }
 
   function attach() {
@@ -49,5 +82,5 @@ export function createMessageBus({ allowedOrigin = '' } = {}) {
     window.removeEventListener('message', handleMessage);
   }
 
-  return { on, postToParent, attach, detach };
+  return { on, postToParent, attach, detach, origin: targetOrigin, isStrict };
 }

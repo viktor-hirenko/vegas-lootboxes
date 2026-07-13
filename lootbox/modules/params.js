@@ -14,6 +14,7 @@
 // be contiguous (gaps are tolerated).
 
 import { CARD_STATE, VALID_CARD_STATES, DEFAULT_LANG } from './constants.js';
+import { normalizeOrigin } from './message-bus.js';
 
 const CARD_KEY_PATTERN = /^c(\d+)_/;
 
@@ -67,7 +68,7 @@ export function parseWidgetParams(search = window.location.search) {
 
   return {
     lang: searchParams.get('lang') || DEFAULT_LANG,
-    origin: searchParams.get('origin') || '',
+    origin: normalizeOrigin(searchParams.get('origin')),
     debug: searchParams.get('debug') === 'true',
     cards: parseCards(searchParams),
   };
