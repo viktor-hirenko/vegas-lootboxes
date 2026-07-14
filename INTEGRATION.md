@@ -223,6 +223,11 @@ sequenceDiagram
 >   if (type === 'animationComplete') openResultPopup(data);  // перший popup — лише тут
 > });
 > ```
+>
+> `startApiRequest` і `openResultPopup` — це **ваші** функції-приклади (назвіть як
+> завгодно). Віджет їх не надає й не диктує реалізацію: запит до API, popup, blur
+> фону та будь-який UI поза каруселлю — на боці FE. Віджет лише надсилає події
+> `cardClick` / `animationComplete`, а ви реагуєте на них як зручно.
 
 ## 5. Протокол postMessage
 
