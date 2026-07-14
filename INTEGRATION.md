@@ -28,10 +28,17 @@
 Вбудуйте віджет через `<iframe>`. Висоту **не фіксуйте** — віджет сам повідомляє
 актуальну висоту подією `resize`.
 
+> **ℹ️ Актуальна адреса.** Поточний CDN-хост — `https://cdn-wl.s3.amazonaws.com`,
+> префікс шляху — `common/widgets-smartico/`. У прикладах нижче використані саме
+> вони. **Ця адреса може змінитися** (інший бакет/оточення, перейменування папок).
+> Тому в коді винесіть хост і базовий шлях в **одну константу** (`WIDGET_SRC` /
+> `WIDGET_ORIGIN`) і не «розмазуйте» URL по проєкту — тоді зміна адреси = правка
+> в одному місці.
+
 ```html
 <iframe
   id="lootbox-widget"
-  src="https://<cdn-host>/widgets-smartico/lootbox/index.html?lang=en&origin=https%3A%2F%2Fyour-site.com"
+  src="https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox/index.html?lang=en&origin=https%3A%2F%2Fyour-site.com"
   style="width: 100%; border: 0;"
   title="Vegas Lootboxes"
   loading="lazy"
@@ -43,7 +50,7 @@
 ```js
 const iframe = document.getElementById('lootbox-widget');
 // Origin, з якого віддається віджет (CDN-хост із src iframe).
-const WIDGET_ORIGIN = 'https://<cdn-host>';
+const WIDGET_ORIGIN = 'https://cdn-wl.s3.amazonaws.com';
 
 window.addEventListener('message', ({ source, origin, data }) => {
   if (source !== iframe.contentWindow) return;   // лише наш iframe
@@ -99,7 +106,7 @@ iframe ще ініціалізується.
 
 ```html
 <iframe
-  src="https://<cdn-host>/widgets-smartico/lootbox/index.html?lang=en
+  src="https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox/index.html?lang=en
        &c1_state=prize&c1_date=1%20Mar&c1_title=20%20CAD%20bonus&c1_prize=bonus-money
        &c2_state=available&c2_date=2%20Mar
        &c3_state=locked&c3_date=3%20Mar"
@@ -118,12 +125,12 @@ iframe відкривається з коротким URL (лише `lang` / `or
 
 ```js
 iframe.src =
-  'https://<cdn-host>/widgets-smartico/lootbox/index.html?lang=en&origin=' +
+  'https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox/index.html?lang=en&origin=' +
   encodeURIComponent(location.origin);
 
 window.addEventListener('message', ({ source, origin, data }) => {
   if (source !== iframe.contentWindow) return;
-  if (origin !== 'https://<cdn-host>') return;   // лише очікуваний origin
+  if (origin !== 'https://cdn-wl.s3.amazonaws.com') return;   // лише очікуваний origin
 
   if (data?.type === 'ready') {
     iframe.contentWindow.postMessage(
@@ -137,7 +144,7 @@ window.addEventListener('message', ({ source, origin, data }) => {
           ],
         },
       },
-      'https://<cdn-host>',
+      'https://cdn-wl.s3.amazonaws.com',
     );
   }
 });
@@ -339,4 +346,19 @@ API — хоч кілька секунд.
 ## 10. Розгортання
 
 Ручне завантаження на CDN. Кроки збірки та вивантаження — у `README.md`
-(`widgets-smartico/lootbox`).
+(`common/widgets-smartico/lootbox`).
+
+### Поточні бойові адреси
+
+| Що | URL |
+|----|-----|
+| Віджет (iframe `src`) | `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox/index.html` |
+| Пісочниця інтеграції  | `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox-test/index.html` |
+| Origin для перевірки `event.origin` | `https://cdn-wl.s3.amazonaws.com` |
+
+> **⚠️ Адреса може змінитися.** Це поточне розгортання. Хост чи префікс шляху
+> (`common/widgets-smartico/…`) можуть змінитися при переїзді на інший
+> бакет/оточення або перейменуванні папок. Тримайте хост + базовий шлях в одній
+> константі на своєму боці, щоб оновлення адреси було правкою в одному місці.
+> Пісочниця (`lootbox-test/`) і віджет (`lootbox/`) **завжди** лежать поруч під
+> одним префіксом — інакше пісочниця не знайде віджет (`../lootbox/index.html`).

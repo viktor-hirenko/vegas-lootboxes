@@ -86,28 +86,34 @@ Vault (`bbq-cdn-wl-common`). After `npm run build`, upload the two folders from 
 into the CDN prefix, keeping the same names:
 
 ```text
-<cdn-bucket>/widgets-smartico/lootbox/       ← dist/lootbox/
-<cdn-bucket>/widgets-smartico/lootbox-test/  ← dist/lootbox-test/
+common/widgets-smartico/lootbox/       ← dist/lootbox/
+common/widgets-smartico/lootbox-test/  ← dist/lootbox-test/
 ```
 
 Manual steps:
 1. `npm run build`
-2. Upload `dist/lootbox/` into `widgets-smartico/lootbox/` on the bucket.
-3. Upload `dist/lootbox-test/` into `widgets-smartico/lootbox-test/` on the bucket.
+2. Upload `dist/lootbox/` into `common/widgets-smartico/lootbox/` on the bucket.
+3. Upload `dist/lootbox-test/` into `common/widgets-smartico/lootbox-test/` on the bucket.
 4. Share URLs with the integrating team:
-   - Widget (iframe src): `https://<cdn-host>/widgets-smartico/lootbox/index.html`
-   - Integration sandbox: `https://<cdn-host>/widgets-smartico/lootbox-test/index.html`
+   - Widget (iframe src): `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox/index.html`
+   - Integration sandbox: `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox-test/index.html`
+   - Origin for `event.origin` checks: `https://cdn-wl.s3.amazonaws.com`
+
+> **Note — this address may change.** These are the current deployment paths. The
+> host or the `common/widgets-smartico/…` prefix can change (different bucket/env,
+> renamed folders). Integrators should keep the host + base path in a single
+> constant so a move is a one-line change.
 
 The sandbox loads the widget via the relative path `../lootbox/index.html`, so both
 folders must stay **siblings** under the same CDN prefix (e.g. both under
-`widgets-smartico/`).
+`common/widgets-smartico/`).
 
 Deploy is manual upload (same as other widgets on this CDN). If releases become
 recurring, a follow-up script such as:
 
 ```bash
-aws s3 sync ./dist/lootbox      s3://<bucket>/widgets-smartico/lootbox --delete
-aws s3 sync ./dist/lootbox-test s3://<bucket>/widgets-smartico/lootbox-test --delete
+aws s3 sync ./dist/lootbox      s3://<bucket>/common/widgets-smartico/lootbox --delete
+aws s3 sync ./dist/lootbox-test s3://<bucket>/common/widgets-smartico/lootbox-test --delete
 ```
 
 would be the natural next step once bucket/profile naming conventions are confirmed.
