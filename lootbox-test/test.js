@@ -73,6 +73,20 @@ const DEFAULT_OPEN_PREDICTION = {
 /** Card ids/indexes currently waiting on the mock open API. */
 const openInFlight = new Set()
 
+// The widget always lives in the sibling `lootbox/` folder — same layout in
+// the repo, in `dist/`, and on the CDN under `widgets-smartico/`.
+const WIDGET_ENTRY_PATH = '../lootbox/index.html'
+
+// Origin the widget iframe is served from. Since the entry path is relative,
+// this resolves to the sandbox's own origin. Used to target outgoing
+// postMessage and to filter incoming ones — exactly what a real parent page
+// must do instead of trusting/using '*'. Resolves to 'null' under file://,
+// where cross-window origin checks don't apply, so we fall back to '*' then.
+// NOTE: must be declared before `state`, which reads them below.
+const WIDGET_ORIGIN = new URL(WIDGET_ENTRY_PATH, window.location.href).origin
+const HAS_STRICT_ORIGIN = WIDGET_ORIGIN && WIDGET_ORIGIN !== 'null'
+const WIDGET_TARGET_ORIGIN = HAS_STRICT_ORIGIN ? WIDGET_ORIGIN : '*'
+
 const state = {
   lang: 'en',
   // Pass our own origin to the widget so it locks postMessage to this page
@@ -108,19 +122,6 @@ const cardRowsEl = document.getElementById('card-rows')
 const globalInputs = document.querySelectorAll('[data-global]')
 
 // --- Helpers -------------------------------------------------------------
-
-// The widget always lives in the sibling `lootbox/` folder — same layout in
-// the repo, in `dist/`, and on the CDN under `widgets-smartico/`.
-const WIDGET_ENTRY_PATH = '../lootbox/index.html'
-
-// Origin the widget iframe is served from. Since the entry path is relative,
-// this resolves to the sandbox's own origin. Used to target outgoing
-// postMessage and to filter incoming ones — exactly what a real parent page
-// must do instead of trusting/using '*'. Resolves to 'null' under file://,
-// where cross-window origin checks don't apply, so we fall back to '*' then.
-const WIDGET_ORIGIN = new URL(WIDGET_ENTRY_PATH, window.location.href).origin
-const HAS_STRICT_ORIGIN = WIDGET_ORIGIN && WIDGET_ORIGIN !== 'null'
-const WIDGET_TARGET_ORIGIN = HAS_STRICT_ORIGIN ? WIDGET_ORIGIN : '*'
 
 function escapeHtml(value) {
   return String(value ?? '')
