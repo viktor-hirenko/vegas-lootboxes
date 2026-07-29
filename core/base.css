@@ -1,0 +1,519 @@
+/*
+  Brand-agnostic widget structure: document reset, carousel, the card box model
+  and the layer stack. Cards are layered raster compositions (background + glow +
+  object + title + badges), not CSS-drawn shapes, and every measurement scales
+  from a 208px base width via calc(var(--lb-card-width) / 208 * N).
+
+  Colours, fonts weights that differ per brand, artwork geometry
+  (--lb-obj-w / --lb-obj-shift) and all animations live in <brand>/theme.css.
+  A brand may override anything here, since its stylesheet is loaded after this
+  one — but it must not need to fight it.
+
+  Tokens a brand theme is expected to define:
+    --lb-text  --lb-badge-bg  --lb-badge-text  --lb-badge-outline-border
+    --lb-badge-outline-text  --lb-cta-bg  --lb-cta-text  --lb-card-border
+    --lb-active-border  --lb-arrow-bg  --lb-arrow-bg-hover  --lb-arrow-icon
+    --lb-skeleton-bg
+*/
+
+:root {
+  /* Radii */
+  --lb-radius-pill: 9999px;
+
+  /* Single source of truth for the card box.
+     Every other measurement is derived from it via calc(card / 208 * value)
+     so the whole composition scales proportionally with the card width.
+     Default is 208px; overridden fluidly on desktop in the @container block. */
+  --lb-card-width: 208px;
+  /* Active-card glow blur at the design base (25px @ 208px). Vertical track
+     padding uses blur + 3px so the shadow is not clipped by the iframe. */
+  --lb-glow-blur: calc(var(--lb-card-width) / 208 * 25);
+
+  --lb-font:
+    'Sora', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  /* The widget never needs its own document scroll: the parent sizes the iframe
+     from the `resize` height. Clip both axes so a 1-2px height rounding gap can
+     not spawn a vertical scrollbar (the white gutter integrators reported). The
+     card row scrolls on .lb-carousel__track, unaffected by this. */
+  overflow: hidden;
+}
+
+body {
+  width: 100%;
+  /* Query container = iframe embed width (not viewport). Must live on an
+     ancestor so @container rules can target .lb-widget (a container cannot
+     query itself). */
+  container-type: inline-size;
+  font-family: var(--lb-font);
+  color: var(--lb-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.lb-widget {
+  width: 100%;
+  /* Glow clearance token — consumed by .lb-carousel__track vertical padding.
+     Must live on track (not here): viewport overflow-x:clip forces overflow-y
+     to clip, so box-shadow needs room inside the track's padding box.
+     Mobile: blur + 3px (= 28 @ 208px). Tablet+: 32px. */
+  --lb-glow-clearance: calc(var(--lb-glow-blur) + 3px);
+  padding: 0;
+}
+
+/* Carousel ---------------------------------------------------------------- */
+
+.lb-carousel {
+  position: relative;
+  /* Arrow size and inset scale with the embed width (40px / 32px at 872px). */
+  --lb-arrow-size: calc(100cqw * 40 / 872);
+  --lb-arrow-inset: calc(100cqw * 32 / 872);
+}
+
+/* Viewport clips horizontally (so cards can't leak past the widget on either
+   side when there are many of them). overflow-x:clip also forces overflow-y
+   to clip descendants — box-shadow must fit inside .lb-carousel__track's
+   vertical padding (see --lb-glow-clearance), not .lb-widget padding. */
+.lb-carousel__viewport {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.lb-carousel__track {
+  display: flex;
+  align-items: center;
+  /* Gap scales with card width (16px at the 208px base). */
+  gap: calc(var(--lb-card-width) / 208 * 16);
+  overflow-x: auto;
+  overflow-y: visible;
+  /* Mandatory (not proximity): every swipe/arrow scroll lands on a card start,
+     so exactly 4 cards are visible at any rest position — never a 5th sliver. */
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  /* Horizontal gutter = gap (16). Vertical = --lb-glow-clearance so active-card
+     box-shadow (blur 25) is not clipped by the viewport scrollport. */
+  padding: var(--lb-glow-clearance) calc(var(--lb-card-width) / 208 * 16);
+  scrollbar-width: none;
+  scroll-padding-inline: calc(var(--lb-card-width) / 208 * 16);
+  min-width: 0;
+}
+
+.lb-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Carousel arrows: circular buttons that scale with the embed width. */
+.lb-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  width: var(--lb-arrow-size);
+  height: var(--lb-arrow-size);
+  padding: calc(100cqw * 8 / 872);
+  border: 0;
+  border-radius: var(--lb-radius-pill);
+  background: var(--lb-arrow-bg);
+  color: var(--lb-arrow-icon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.lb-carousel__arrow svg {
+  display: block;
+  width: calc(100cqw * 24 / 872);
+  height: calc(100cqw * 24 / 872);
+  flex-shrink: 0;
+}
+
+.lb-carousel__arrow:hover:not(:disabled) {
+  background: var(--lb-arrow-bg-hover);
+}
+
+.lb-carousel__arrow:disabled {
+  cursor: default;
+}
+
+.lb-carousel__arrow--prev {
+  left: var(--lb-arrow-inset);
+}
+
+.lb-carousel__arrow--next {
+  right: var(--lb-arrow-inset);
+}
+
+.lb-carousel--scrollable .lb-carousel__arrow {
+  pointer-events: auto;
+}
+
+.lb-carousel--scrollable:not(.lb-carousel--at-start) .lb-carousel__arrow--prev {
+  opacity: 1;
+}
+
+.lb-carousel--scrollable:not(.lb-carousel--at-end) .lb-carousel__arrow--next {
+  opacity: 1;
+}
+
+/* Synced with the fluid @container breakpoint: arrows appear only when the
+   embed is wide enough for the 4-card layout. Driven by the widget's own
+   width, not the host viewport. */
+@container (max-width: 767px) {
+  .lb-carousel__arrow {
+    display: none;
+  }
+}
+
+/* Fluid card size: activates on tablet/desktop embeds.
+   Below 768px we keep 208px cards with native swipe (mobile UX).
+
+   Exact fit for symmetric gutters on BOTH sides at once:
+     2·gutter + 4·card + 3·gap = W
+   with gutter = gap = card·16/208:
+     card · (4 + 5·16/208) = W  →  card = W · 13/57
+   The 5th card then starts exactly at x=W (no sliver). A slightly larger
+   coefficient (e.g. 23cqw) overflows by a few px, eats the right gutter,
+   and makes the left glow look more clipped than the right. */
+@container (min-width: 768px) {
+  .lb-widget {
+    --lb-glow-clearance: 32px;
+  }
+
+  .lb-carousel {
+    --lb-card-width: calc(100cqw * 13 / 57);
+  }
+}
+
+/* Card ---------------------------------------------------------------------
+   Layer stack (bottom -> top):
+   1. .lb-card__bg      full-bleed background scene (per state/variant)
+   2. .lb-card__light   radial glow, centered behind the object
+   3. .lb-card__object  the state's central artwork
+   4. .lb-card__title, .lb-card__subtitle, .lb-card__cta
+   5. .lb-card__badges  date + status (Opened / Not opened / countdown) */
+.lb-card {
+  /* Bottom-spacing knobs (208-grid units, scale with the card):
+       --lb-pad-bottom : no-button cards — gap from the card bottom to the title.
+       --lb-cta-bottom : with-button cards — gap from the card bottom to the CTA.
+       --lb-cta-h      : CTA button height.
+       --lb-cta-gap    : reserved gap between the title and the CTA.
+     With-button bottom padding is derived (cta-bottom + cta-h + cta-gap) so the
+     title always clears the absolutely-pinned button. */
+  --lb-pad: calc(var(--lb-card-width) / 208 * 16);
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 29);
+  --lb-cta-bottom: calc(var(--lb-card-width) / 208 * 23);
+  --lb-cta-h: calc(var(--lb-card-width) / 208 * 32);
+  --lb-cta-gap: calc(var(--lb-card-width) / 208 * 14);
+  --lb-content-gap: calc(var(--lb-card-width) / 208 * 8);
+
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  position: relative;
+  width: var(--lb-card-width);
+  /* Height follows the design aspect-ratio, so the card never distorts. */
+  aspect-ratio: 208 / 288;
+  height: auto;
+  border: 1px solid var(--lb-card-border);
+  border-radius: calc(var(--lb-card-width) / 208 * 8);
+  overflow: hidden;
+  padding: 0;
+  background: transparent;
+  color: var(--lb-text);
+  font: inherit;
+  text-align: center;
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* "Active"/today variant: taller card. The border colour and the outer glow are
+   brand tokens (see theme.css); the box change is structural. */
+.lb-card--active {
+  aspect-ratio: 208 / 320;
+  border: 1px solid var(--lb-active-border);
+  overflow: visible;
+}
+
+/* Press feedback only on real <button> cards (available / today's prize with CTA).
+   Past prize/prediction are <div class="lb-card--disabled"> and must not animate. */
+button.lb-card {
+  cursor: pointer;
+}
+
+button.lb-card:active {
+  transform: translateY(1px) scale(0.995);
+}
+
+.lb-card--disabled {
+  cursor: default;
+}
+
+.lb-card__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lb-card__content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Object at top, title pushed to the bottom: the growing .lb-card__object-wrap
+     eats the free space so the title always lands exactly --lb-pad-bottom above
+     the edge, regardless of object height. */
+  justify-content: flex-start;
+  gap: var(--lb-content-gap);
+  padding: var(--lb-pad);
+  padding-bottom: var(--lb-pad-bottom); /* NO-BUTTON: title -> bottom gap */
+  overflow: hidden;
+}
+
+/* WITH-BUTTON cards (prize / prediction active): reserve the CTA footer so the
+   title clears the absolutely-pinned button. Derived from the CTA knobs above. */
+.lb-card__content:has(.lb-card__cta) {
+  padding-bottom: calc(var(--lb-cta-bottom) + var(--lb-cta-h) + var(--lb-cta-gap));
+}
+
+.lb-card__object-wrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Grow to absorb the free space above the bottom-pinned title. */
+  flex: 1 1 auto;
+}
+
+/* Card-anchored glow: a fixed card-relative position, used when the glow must
+   NOT follow the object (see the brand's isDecoupledGlow). */
+.lb-card__glow {
+  position: absolute;
+  left: 50%;
+  top: 45.5%;
+  transform: translate(-50%, -50%);
+  width: var(--lb-card-width);
+  height: var(--lb-card-width);
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lb-card__glow .lb-card__light {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+}
+
+.lb-card__light {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--lb-card-width);
+  height: var(--lb-card-width);
+  object-fit: contain;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lb-card__object {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  /* Width is per-state via --lb-obj-w (units of the 208 design grid), set in
+     the brand theme because it depends on how the artwork is cropped. */
+  width: calc(var(--lb-card-width) / 208 * var(--lb-obj-w, 128));
+}
+
+/* Vertical placement knob: flex centers the object, then --lb-obj-shift nudges
+   it DOWN to the exact target position. translateY (not top/padding) keeps the
+   bottom-pinned title untouched and stays GPU-cheap, and since the glow lives
+   INSIDE the wrap here it moves in perfect sync with the object.
+   Cards flagged --chain by a brand opt out and get their own rule. */
+.lb-card:not(.lb-card--chain) .lb-card__object-wrap {
+  transform: translateY(calc(var(--lb-card-width) / 208 * var(--lb-obj-shift, 0)));
+}
+
+/* Text --------------------------------------------------------------------- */
+
+.lb-card__title {
+  position: relative;
+  z-index: 1;
+  /* Pin the title to the bottom of the content: margin-top:auto eats the free
+     space, so the title always sits --lb-pad-bottom above the edge no matter how
+     tall the object box is. */
+  margin: auto 0 0;
+  font-weight: 700;
+  font-size: calc(var(--lb-card-width) / 208 * 15);
+  line-height: 1.1;
+  color: var(--lb-text);
+  word-break: break-word;
+}
+
+/* Second line under the title (e.g. "One day slipped away" on a missed day).
+   The title's margin-top:auto still pushes the whole title+subtitle group to the
+   bottom, so the subtitle only needs its own gap. */
+.lb-card__subtitle {
+  position: relative;
+  z-index: 1;
+  margin: calc(var(--lb-card-width) / 208 * 4) 0 0;
+  font-weight: 400;
+  font-size: calc(var(--lb-card-width) / 208 * 12);
+  line-height: 1.25;
+  color: var(--lb-subtitle-text, var(--lb-text));
+  word-break: break-word;
+}
+
+/* CTA (active prize / prediction): full-width button pinned to the card bottom
+   (100% width minus 16u padding each side, 32u tall, --lb-cta-bottom from the
+   bottom edge in the 208x320 active frame). Absolutely positioned so it never
+   competes with the centered object/title flow. */
+.lb-card__cta {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--lb-card-width) / 208 * 16);
+  right: calc(var(--lb-card-width) / 208 * 16);
+  bottom: var(--lb-cta-bottom);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--lb-cta-h);
+  padding: 0 calc(var(--lb-card-width) / 208 * 16);
+  border-radius: var(--lb-radius-pill);
+  background: var(--lb-cta-bg);
+  color: var(--lb-cta-text);
+  font-weight: 700;
+  font-size: calc(var(--lb-card-width) / 208 * 14);
+  line-height: calc(var(--lb-card-width) / 208 * 20);
+  white-space: nowrap;
+}
+
+/* CTA belongs to the settled result, not the open sequence: during the open
+   animation the card is pointer-events:none, so a visible button reads as
+   clickable but is dead. visibility (not display) keeps its reserved space so
+   the layout under the animation does not jump. */
+.lb-card--opening .lb-card__cta {
+  visibility: hidden;
+}
+
+/* Badges ------------------------------------------------------------------- */
+
+.lb-card__badges {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--lb-card-width) / 208 * 13);
+  left: calc(var(--lb-card-width) / 208 * 13);
+  right: calc(var(--lb-card-width) / 208 * 13);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--lb-card-width) / 208 * 4);
+  pointer-events: none;
+}
+
+.lb-card__badges--single {
+  justify-content: flex-start;
+}
+
+.lb-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--lb-card-width) / 208 * 4) calc(var(--lb-card-width) / 208 * 8);
+  border-radius: var(--lb-radius-pill);
+  font-weight: 400;
+  font-size: calc(var(--lb-card-width) / 208 * 11);
+  line-height: calc(var(--lb-card-width) / 208 * 14.3);
+  white-space: nowrap;
+}
+
+/* Date badge — filled pill with blur (Basic Badge/Default). */
+.lb-card__badge--filled {
+  background: var(--lb-badge-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--lb-badge-text);
+}
+
+/* Status badge — outline pill, no fill: "Opened" / "Not opened" / countdown. */
+.lb-card__badge--outline {
+  background: transparent;
+  border: 1px solid var(--lb-badge-outline-border);
+  color: var(--lb-badge-outline-text);
+  line-height: calc(var(--lb-card-width) / 208 * 14.85);
+}
+
+/* Countdown badge: a status pill whose text is rewritten every second. Tabular
+   figures so HH:MM:SS does not jitter as the digits change. */
+.lb-card__badge--timer {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Skeleton ----------------------------------------------------------------- */
+
+/* Loading placeholder: solid brand background, centered mark at reduced opacity. */
+.lb-card--skeleton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lb-skeleton-bg);
+  border: none;
+  box-shadow: none;
+  padding: 0 calc(var(--lb-card-width) / 208 * 16);
+}
+
+.lb-card__skeleton-logo {
+  position: relative;
+  flex-shrink: 0;
+  width: calc(var(--lb-card-width) / 208 * 128);
+  height: calc(var(--lb-card-width) / 208 * 128);
+  opacity: 0.32;
+}
+
+.lb-card__skeleton-logo img {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
+}

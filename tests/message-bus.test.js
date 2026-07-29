@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeOrigin, createMessageBus } from '../lootbox/modules/message-bus.js';
+import { normalizeOrigin, createMessageBus } from '../core/message-bus.js';
 
 /** Minimal window stub: records outgoing postMessage and lets tests dispatch
  * incoming `message` events. `parent` is a distinct object so the bus can tell

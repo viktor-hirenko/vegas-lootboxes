@@ -1,15 +1,18 @@
 // Renders placeholder skeleton cards while the widget waits for real content.
-// Static layout: purple background, centered brand logo at reduced opacity.
-
-const LOGO_SRC = './assets/images/logo-vegas.webp';
+// Static layout: flat brand background with a centered brand mark at reduced
+// opacity. The mark and its intrinsic size come from the brand config; the
+// background colour is a theme token (--lb-skeleton-bg).
 
 /**
  * @param {HTMLElement} track container to fill with skeleton cards
  * @param {number} count how many placeholder cards to render
+ * @param {{ mark: string, markWidth?: number, markHeight?: number }} skeleton brand config
  */
-export function renderSkeleton(track, count) {
+export function renderSkeleton(track, count, skeleton) {
   track.innerHTML = '';
   track.setAttribute('aria-busy', 'true');
+
+  const { mark, markWidth = 128, markHeight = 128 } = skeleton;
 
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < count; i += 1) {
@@ -20,7 +23,7 @@ export function renderSkeleton(track, count) {
     el.setAttribute('aria-hidden', 'true');
     el.innerHTML = `
       <div class="lb-card__skeleton-logo">
-        <img src="${LOGO_SRC}" alt="" width="147" height="128" decoding="async" />
+        <img src="${mark}" alt="" width="${markWidth}" height="${markHeight}" decoding="async" />
       </div>
     `;
     fragment.appendChild(el);

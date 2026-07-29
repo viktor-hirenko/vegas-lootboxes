@@ -1,6 +1,5 @@
 // Warms and caches motion assets so reveal animations start on a decoded frame.
-
-import { ANIMATIONS } from './icons.js';
+// Brand-agnostic: which URLs to warm is decided by the brand (see its open.js).
 
 /** @type {Map<string, Promise<void>>} */
 const preloadCache = new Map();
@@ -41,19 +40,10 @@ function preloadUrl(url) {
   return promise;
 }
 
-/** URLs warmed during Phase 1 (charge) before the reveal result is known.
- * predictionBall loops infinitely, so warming it only speeds first paint (no
- * "burned one-shot timeline" issue like flash/confetti). */
-export const OPEN_REVEAL_ASSET_URLS = Object.freeze([
-  ANIMATIONS.flash,
-  ANIMATIONS.flash2x,
-  ANIMATIONS.confetti,
-  ANIMATIONS.predictionBall,
-]);
-
-/** Fire-and-forget preload while the backend responds (Phase 1 — charge). */
-export function warmOpenRevealAssets() {
-  OPEN_REVEAL_ASSET_URLS.forEach((url) => {
+/** Fire-and-forget preload while the backend responds (Phase 1 — charge).
+ * @param {readonly string[]} urls */
+export function warmAssets(urls) {
+  urls.forEach((url) => {
     preloadUrl(url).catch(() => {});
   });
 }

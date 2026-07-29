@@ -1,0 +1,29 @@
+/*
+  Sora — self-hosted brand font shared by every brand (titles, body copy, CTAs
+  and badges). Weights: 400 regular, 600 semibold, 700 bold.
+
+  The font files live in core/assets/fonts/ and are copied into each brand's
+  dist folder at build time, so this relative path resolves both in the repo
+  (core/fonts.css -> core/assets/fonts/) and on the CDN (widget.css -> assets/fonts/).
+*/
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/sora-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/sora-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/sora-700.woff2') format('woff2');
+}

@@ -8,8 +8,15 @@
       Draft iFrame widget. Vanilla HTML/CSS/JS, no frameworks, no build step required.
       See /lootbox-test/index.html for the integration sandbox and full protocol docs,
       or /INTEGRATION.md for a short written version.
+
+      The three stylesheets below are concatenated into a single ./widget.css by
+      scripts/build.js — do not remove the lb:styles markers, the build keys off them.
     -->
-    <link rel="stylesheet" href="./widget.css" />
+    <!-- lb:styles -->
+    <link rel="stylesheet" href="../core/fonts.css" />
+    <link rel="stylesheet" href="../core/base.css" />
+    <link rel="stylesheet" href="./theme.css" />
+    <!-- /lb:styles -->
   </head>
   <body>
     <div id="lb-widget" class="lb-widget" data-lb-root>

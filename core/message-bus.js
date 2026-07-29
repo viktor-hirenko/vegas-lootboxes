@@ -40,7 +40,7 @@ export function createMessageBus({ allowedOrigin = '', debug = false } = {}) {
   if (!isStrict && debug) {
     // eslint-disable-next-line no-console
     console.warn(
-      '[vegas-lootboxes-widget] no valid `origin` param — postMessage runs in permissive mode (*). ' +
+      '[lootbox-widget] no valid `origin` param — postMessage runs in permissive mode (*). ' +
         'Pass origin=<parent-origin> in the iframe URL for production.',
     );
   }

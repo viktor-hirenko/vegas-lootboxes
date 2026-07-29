@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseWidgetParams } from '../lootbox/modules/params.js';
+import { parseWidgetParams } from '../core/params.js';
 
 test('a valid origin is canonicalized', () => {
   const params = parseWidgetParams('?origin=https%3A%2F%2Fsite.com%2Fx&lang=fr');
@@ -45,4 +45,19 @@ test('cards are parsed from the c{i}_* contract', () => {
 test('unknown card states fall back to locked', () => {
   const params = parseWidgetParams('?c1_state=bogus');
   assert.equal(params.cards[0].state, 'locked');
+});
+
+test('subtitle and countdown fields are parsed', () => {
+  const params = parseWidgetParams(
+    '?c1_state=missed&c1_subtitle=One%20day%20slipped%20away&c2_state=locked&c2_timer_to=1800000000000&c2_timer=23%3A59%3A59',
+  );
+  assert.equal(params.cards[0].subtitle, 'One day slipped away');
+  assert.equal(params.cards[1].timerTo, 1800000000000);
+  assert.equal(params.cards[1].timer, '23:59:59');
+});
+
+test('a malformed timer deadline degrades to no countdown', () => {
+  assert.equal(parseWidgetParams('?c1_timer_to=soon').cards[0].timerTo, 0);
+  assert.equal(parseWidgetParams('?c1_timer_to=-5').cards[0].timerTo, 0);
+  assert.equal(parseWidgetParams('?c1_state=locked').cards[0].timerTo, 0);
 });

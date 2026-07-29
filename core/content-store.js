@@ -10,10 +10,15 @@
  * @property {'available'|'locked'|'prize'|'prediction'|'missed'} state
  * @property {string} date e.g. "1 Mar"
  * @property {string} title
+ * @property {string} [subtitle] second line under the title (Thor missed day)
  * @property {string} cta e.g. "Go to Bonuses" (prize state)
  * @property {string} tag status badge override ("Opened" / "Not opened")
- * @property {'bonus-money'|'cash'|'coin'|'free-spins'|''} [prizeType] prize art selector
+ * @property {string} [prizeType] prize art selector; the valid set is per brand
+ *   (see brand.config.js `prize`), unknown values fall back to the brand default
  * @property {boolean} [active] true = today's just-opened result (glow variant)
+ * @property {string} [timer] literal countdown text, rendered as-is
+ * @property {number} [timerTo] absolute unlock deadline in epoch ms; the widget
+ *   formats and ticks it locally and emits `timerEnd` when it reaches zero
  */
 
 function matchesCard(card, matcher = {}) {
