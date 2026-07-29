@@ -25,7 +25,11 @@ export function observeResize(el, callback) {
   let lastHeight = -1;
 
   const notify = (height) => {
-    const rounded = Math.ceil(height);
+    // Never under-report: with `overflow: hidden` on the document, a height below
+    // the real content would clip it instead of scrolling. Take the max of the
+    // observed border-box and the document's own scrollHeight as a safety net.
+    const measured = Math.max(height, document.documentElement.scrollHeight);
+    const rounded = Math.ceil(measured);
     if (rounded === lastHeight) return;
     lastHeight = rounded;
     callback(rounded);

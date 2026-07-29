@@ -77,6 +77,11 @@ body {
   margin: 0;
   padding: 0;
   background: transparent;
+  /* The widget never needs its own document scroll: the parent sizes the iframe
+     from the `resize` height. Clip both axes so a 1-2px height rounding gap can
+     not spawn a vertical scrollbar (the white gutter integrators reported). The
+     card row scrolls on .lb-carousel__track, unaffected by this. */
+  overflow: hidden;
   /* color-scheme: dark; */
 }
 
@@ -89,7 +94,6 @@ body {
   font-family: var(--lb-font);
   color: var(--lb-text);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
 }
 
 .lb-widget {
@@ -542,6 +546,15 @@ button.lb-card:active {
 
 .lb-card--opening .lb-card__hand {
   display: none;
+}
+
+/* CTA belongs to the settled result, not the open sequence: during charge/flash
+   the card is pointer-events:none, so a visible button reads as clickable but is
+   dead. Hide it until the reveal finishes and render() remounts the card without
+   .lb-card--opening. visibility (not display) keeps its reserved space so the
+   layout under the flash does not jump. */
+.lb-card--opening .lb-card__cta {
+  visibility: hidden;
 }
 
 /* --- Open sequence: two phases (see OPEN_ANIMATION in constants.js) ---------

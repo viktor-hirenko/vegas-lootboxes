@@ -73,8 +73,10 @@ export const OPEN_ANIMATION = Object.freeze({
   // their fresh SVGator burst fires only AFTER the white is fully gone. The white
   // is dominated by flash.svg (2000ms), whose burst scales to 0 at 60% ≈ 1200ms —
   // NOT the CSS veil (900ms). Must stay > ~1200ms or confetti pop through the white.
-  CONFETTI_HOLD_MS: 8000, // visible confetti time before the graceful fade begins.
-  // confetti.svg loops every 3000ms; 3 cycles ≈ 3 pops (8000ms), then fade masks the 4th restart.
+  CONFETTI_HOLD_MS: 2200, // visible confetti time before the graceful fade begins.
+  // confetti.svg loops every 3000ms; this holds ~one pop so the prize popup opens
+  // fast (total to animationComplete ≈ CONFETTI_AT_MS + this + FADE_OUT_MS ≈ 4.2s),
+  // then the fade masks the next restart. Tune here to trade pops for speed.
   FADE_OUT_MS: 700, // graceful overlay fade before removal (sync with .lb-card__open-fx.is-out)
   COMPLETE_AT_MS: 2000, // non-prize: emit animationComplete after flash.svg resolves
   FLASH_READY_TIMEOUT_MS: 800, // max wait for flash decode before starting reveal
