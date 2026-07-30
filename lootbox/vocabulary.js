@@ -15,8 +15,9 @@ export const CHAIN_STATES = Object.freeze([
   CARD_STATE.MISSED,
 ])
 
-/** Prize art vocabulary. `aliases` maps Thor's names onto Vegas's so one
- * Smartico payload feeds both brands without the backend branching per brand. */
+/** Prize art vocabulary. `aliases` covers the contract values Vegas has no
+ * artwork of its own for — `cashback` lands on the cash object — so one Smartico
+ * payload feeds every brand without the backend branching per brand. */
 export const PRIZE = Object.freeze({
   valid: Object.freeze(['bonus-money', 'cash', 'coin', 'free-spins']),
   default: 'coin',

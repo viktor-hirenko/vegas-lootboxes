@@ -3,10 +3,22 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { isActive, isClickable, hasCta, prizeTypeOf, statusTextFor } from '../core/card-model.js';
 import { PRIZE as VEGAS_PRIZE } from '../lootbox/vocabulary.js';
 import { PRIZE as THOR_PRIZE } from '../lootbox-thor/vocabulary.js';
+import { statusTextFor as thorStatusTextFor } from '../lootbox-thor/render.js';
+import { PRIZE_ART, MISSED_ART as VEGAS_MISSED_ART } from '../lootbox/icons.js';
+import {
+  OBJECTS_LG,
+  OBJECTS_SM,
+  MISSED_ART as THOR_MISSED_ART,
+} from '../lootbox-thor/icons.js';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('available is always today; results are today only when flagged', () => {
   assert.equal(isActive({ state: 'available' }), true);
@@ -34,19 +46,58 @@ test('hasCta matches the clickability rule for results only', () => {
 
 test('an unknown prize type falls back to the brand default', () => {
   assert.equal(prizeTypeOf({ prizeType: 'nonsense' }, VEGAS_PRIZE), 'coin');
-  assert.equal(prizeTypeOf({}, THOR_PRIZE), 'coins');
+  assert.equal(prizeTypeOf({}, THOR_PRIZE), 'coin');
 });
 
-test('aliases let one Smartico payload feed both brands', () => {
-  // Thor names resolved on Vegas
+test('the shared contract values resolve on both brands', () => {
+  for (const prizeType of ['coin', 'bonus-money', 'free-spins']) {
+    assert.equal(prizeTypeOf({ prizeType }, VEGAS_PRIZE), prizeType);
+    assert.equal(prizeTypeOf({ prizeType }, THOR_PRIZE), prizeType);
+  }
+});
+
+test('a value a brand has no art for lands on its nearest object', () => {
+  // Vegas draws no cashback, Thor draws no cash — each stands in with its own.
   assert.equal(prizeTypeOf({ prizeType: 'cashback' }, VEGAS_PRIZE), 'cash');
-  assert.equal(prizeTypeOf({ prizeType: 'coins' }, VEGAS_PRIZE), 'coin');
-  // Vegas names resolved on Thor
   assert.equal(prizeTypeOf({ prizeType: 'cash' }, THOR_PRIZE), 'cashback');
-  assert.equal(prizeTypeOf({ prizeType: 'coin' }, THOR_PRIZE), 'coins');
-  // names shared by both brands pass through untouched
-  assert.equal(prizeTypeOf({ prizeType: 'free-spins' }, VEGAS_PRIZE), 'free-spins');
-  assert.equal(prizeTypeOf({ prizeType: 'bonus-money' }, THOR_PRIZE), 'bonus-money');
+  // `coins` is the plural Thor shipped before the vocabularies were aligned;
+  // both brands keep accepting it so a live integration does not break.
+  assert.equal(prizeTypeOf({ prizeType: 'coins' }, VEGAS_PRIZE), 'coin');
+  assert.equal(prizeTypeOf({ prizeType: 'coins' }, THOR_PRIZE), 'coin');
+});
+
+/** A prize type is a contract value, and the art map keyed by it is a brand's
+ * private business — but a key missing from that map renders a broken <img>, and
+ * only in one state. These two checks keep vocabulary, art maps and the files on
+ * disk from drifting apart (the kind of gap a renamed asset leaves behind). */
+const ART_SETS = [
+  { brand: 'lootbox', prize: VEGAS_PRIZE, maps: { PRIZE_ART, MISSED_ART: VEGAS_MISSED_ART } },
+  {
+    brand: 'lootbox-thor',
+    prize: THOR_PRIZE,
+    maps: { OBJECTS_LG, OBJECTS_SM, MISSED_ART: THOR_MISSED_ART },
+  },
+];
+
+test('every prize in a brand vocabulary is keyed in all of its art maps', () => {
+  for (const { brand, prize, maps } of ART_SETS) {
+    for (const [mapName, map] of Object.entries(maps)) {
+      for (const prizeType of prize.valid) {
+        assert.ok(map[prizeType], `${brand}: ${mapName} has no art for "${prizeType}"`);
+      }
+    }
+  }
+});
+
+test('every art path in a brand resolves to a file that exists', () => {
+  for (const { brand, maps } of ART_SETS) {
+    for (const [mapName, map] of Object.entries(maps)) {
+      for (const [key, src] of Object.entries(map)) {
+        const file = path.join(root, brand, src.replace(/^\.\//, ''));
+        assert.ok(fs.existsSync(file), `${brand}: ${mapName}.${key} points at missing ${src}`);
+      }
+    }
+  }
 });
 
 test('status badge text: Not opened on missed, Opened on history, empty on today', () => {
@@ -56,4 +107,14 @@ test('status badge text: Not opened on missed, Opened on history, empty on today
   assert.equal(statusTextFor({ state: 'locked' }, false), '');
   // the parent can override the wording
   assert.equal(statusTextFor({ state: 'missed', tag: 'Expired' }, false), 'Expired');
+});
+
+test('Thor leaves an opened result to a bare date pill, today or in history', () => {
+  assert.equal(thorStatusTextFor({ state: 'missed' }), 'Not opened');
+  assert.equal(thorStatusTextFor({ state: 'missed', tag: 'Expired' }), 'Expired');
+  assert.equal(thorStatusTextFor({ state: 'prize', active: true }), '');
+  assert.equal(thorStatusTextFor({ state: 'prize', active: false }), '');
+  assert.equal(thorStatusTextFor({ state: 'prediction', active: true }), '');
+  // a parent that still sends the Vegas wording gets it dropped, not rendered
+  assert.equal(thorStatusTextFor({ state: 'prize', active: false, tag: 'Opened' }), '');
 });

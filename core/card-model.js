@@ -37,9 +37,11 @@ export function hasCta(card) {
 /**
  * Resolves `card.prizeType` against a brand's vocabulary.
  *
- * Aliases let one Smartico payload feed both brands: Vegas calls it `cash` and
- * `coin`, Thor calls the same things `cashback` and `coins`, so each brand maps
- * the other's names onto its own instead of the backend branching per brand.
+ * The contract has one prize vocabulary for every brand (INTEGRATION.md §11),
+ * but a brand only draws part of it: Vegas has no cashback object, Thor has no
+ * cash one. `aliases` is where a brand says which of its own objects stands in
+ * for a value it cannot draw, so one Smartico payload feeds every brand and an
+ * unknown value still lands on something closer than the default.
  *
  * @param {{ prizeType?: string }} card
  * @param {{ valid: readonly string[], default: string, aliases?: Record<string, string> }} prize
@@ -78,7 +80,10 @@ function badgeClassFor(kind) {
  *
  * @param {object} card
  * @param {string} [statusText]
- * @param {{ statusModifier?: string }} [options] extra class on the status pill
+ * @param {object} [options]
+ * @param {string} [options.statusModifier] extra class on the status pill
+ * @param {number} [options.timerTo] absolute deadline in epoch ms; tags the
+ *   status pill for `startCountdowns` so its text is rewritten every second
  */
 export function renderBadges(card, statusText = '', options = {}) {
   const dateText = card.date ? escapeHtml(card.date) : '';
@@ -87,10 +92,16 @@ export function renderBadges(card, statusText = '', options = {}) {
   if (!dateText && !status) return '';
 
   const dateBadge = dateText ? `<span class="${badgeClassFor('date')}">${dateText}</span>` : '';
-  const statusClass = options.statusModifier
-    ? `${badgeClassFor('status')} ${options.statusModifier}`
-    : badgeClassFor('status');
-  const statusBadge = status ? `<span class="${statusClass}">${status}</span>` : '';
+
+  const ticking = Number.isFinite(options.timerTo) && options.timerTo > 0;
+  const statusClasses = [badgeClassFor('status')];
+  if (options.statusModifier) statusClasses.push(options.statusModifier);
+  if (ticking) statusClasses.push('lb-card__badge--timer');
+  const timerAttr = ticking ? ` data-lb-timer-to="${options.timerTo}"` : '';
+
+  const statusBadge = status
+    ? `<span class="${statusClasses.join(' ')}"${timerAttr}>${status}</span>`
+    : '';
   const single = status ? '' : ' lb-card__badges--single';
 
   return `<div class="lb-card__badges${single}">${dateBadge}${statusBadge}</div>`;
