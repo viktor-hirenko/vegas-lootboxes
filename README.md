@@ -7,7 +7,7 @@ integrators should treat [`INTEGRATION.md`](./INTEGRATION.md) as the stable API.
 | Brand | Folder | Status |
 |-------|--------|--------|
 | Vegas | `lootbox/` | Production. Final motion-designer animations integrated. |
-| Thor  | `lootbox-thor/` | Draft for review. Full contract, final art, animations per the Figma motion spec. |
+| Thor  | `lootbox-thor/` | Draft for review. Full contract and final art; open/burn animations still draft (see INTEGRATION.md §11). Integrate now — protocol will not change. |
 
 **Stack: plain HTML, CSS and JavaScript. No runtime frameworks.** The widgets run
 directly as static files — no build step is required. The `esbuild`/Node scripts in
@@ -81,11 +81,13 @@ Then open:
 - Integration sandbox: `http://localhost:4173/lootbox-test/index.html` — the
   project switcher in the sidebar reloads with `?project=vegas` / `?project=thor`
 
-Unit tests (Node's built-in runner, no dependencies):
+## Testing
 
-```bash
-npm test
-```
+- **Unit:** `npm test` — contract logic (Node, no browser).
+- **E2E:** `npx playwright install chromium` (once), then `npm run test:e2e` — sandbox
+  + iframe flows for Vegas and Thor.
+- **All:** `npm run test:all` — unit then E2E.
+- **Manual:** `npm run dev` → `lootbox-test/?project=vegas` or `?project=thor`
 
 ## Production build (optional)
 
@@ -162,7 +164,10 @@ would be the natural next step once bucket/profile naming conventions are confir
 
 See [`INTEGRATION.md`](./INTEGRATION.md) for the full contract. Card states,
 scalable card count, navigation, the full `postMessage` protocol, skeleton loading
-and the brand animations are implemented for both widgets.
+and the brand-specific visuals are implemented for both widgets. **Vegas**
+open/reveal animations are production-ready; **Thor** contract, art and optional
+fields (`subtitle`, `timerTo` / `timer`, `timerEnd`) are final, while open/burn
+motion is still a draft — see INTEGRATION.md §11.
 
 The open sequence is the same two-phase model in every brand, because the reveal is
 driven by the backend result rather than by a fixed timeline:

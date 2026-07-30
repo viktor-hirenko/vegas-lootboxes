@@ -6,3 +6,6 @@ desktop.ini
 .vite/
 .project-context/
 .tmp/
+test-results/
+playwright-report/
+blob-report/
