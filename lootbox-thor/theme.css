@@ -473,6 +473,13 @@
   opacity: 0.5;
 }
 
+.lb-card__skeleton-logo img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+}
+
 /* Accessibility: honor reduced-motion. The reveal still happens (the runtime
    swaps straight to the result), it just does not turn, scale or fade. */
 @media (prefers-reduced-motion: reduce) {
