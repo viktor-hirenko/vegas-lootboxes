@@ -139,8 +139,9 @@ export const PROJECTS = Object.freeze({
       subtitle: 'Visit every day to open a prize box and see what luck brings',
     }),
     stage: Object.freeze({
-      color: '#040012',
-      gradient: 'radial-gradient(120% 90% at 50% 0%, #2a0f5c 0%, #14032e 45%, #040012 100%)',
+      color: '#110e1b',
+      desktop: './assets/backgrounds/thor-bg-desktop.webp',
+      mobile: './assets/backgrounds/thor-bg-mobile.webp',
     }),
     prizeTypes: Object.freeze(['coin', 'cashback', 'bonus-money', 'free-spins']),
     mockDefaults: Object.freeze({

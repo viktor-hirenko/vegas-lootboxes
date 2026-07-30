@@ -1,16 +1,24 @@
-// One-off asset optimizer: converts every PNG under lootbox/assets/images to
+// One-off asset optimizer: converts every PNG under the asset roots below to
 // WebP in place (same path/name, .webp extension), preserving alpha. Originals
 // are left untouched so the conversion can be verified before removing them.
 //
 // Usage: node scripts/convert-webp.mjs
+//        npm run convert:webp
 // (sharp is a devDependency; safe to remove once assets are finalized.)
 
 import { readdir, stat } from 'node:fs/promises'
-import { join, extname } from 'node:path'
+import { join, extname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
-const ROOT = fileURLToPath(new URL('../lootbox/assets/images', import.meta.url))
+const repoRoot = fileURLToPath(new URL('..', import.meta.url))
+
+/** Roots scanned recursively for PNG → WebP. */
+const ROOTS = [
+  join(repoRoot, 'lootbox/assets/images'),
+  join(repoRoot, 'lootbox-thor/assets/images'),
+  join(repoRoot, 'lootbox-test/assets/backgrounds'),
+]
 
 /** WebP encode settings: high quality, near-lossless alpha, max compression effort. */
 const WEBP_OPTIONS = { quality: 82, alphaQuality: 100, effort: 6 }
@@ -27,7 +35,16 @@ async function collectPngs(dir) {
 }
 
 async function main() {
-  const pngs = await collectPngs(ROOT)
+  const pngs = []
+  for (const root of ROOTS) {
+    pngs.push(...(await collectPngs(root)))
+  }
+
+  if (pngs.length === 0) {
+    console.log('No PNG files found under configured asset roots.')
+    return
+  }
+
   let savedBefore = 0
   let savedAfter = 0
 
@@ -38,7 +55,7 @@ async function main() {
     savedBefore += before
     savedAfter += after
     const pct = Math.round((1 - after / before) * 100)
-    console.log(`${png.replace(ROOT, '')}  ${(before / 1024).toFixed(0)}KB -> ${(after / 1024).toFixed(0)}KB  (-${pct}%)`)
+    console.log(`${relative(repoRoot, png)}  ${(before / 1024).toFixed(0)}KB -> ${(after / 1024).toFixed(0)}KB  (-${pct}%)`)
   }
 
   console.log(
