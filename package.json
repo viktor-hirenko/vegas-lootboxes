@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Draft iFrame widget for Vegas Lootboxes cards. Vanilla HTML/CSS/JS, no runtime frameworks. Tooling here is optional dev convenience only.",
+  "description": "iFrame widgets for the daily Lootboxes cards row (Vegas, Thor) built on one shared core. Vanilla HTML/CSS/JS, no runtime frameworks. Tooling here is optional dev convenience only.",
   "scripts": {
     "dev": "node scripts/serve.js",
     "build": "node scripts/build.js",

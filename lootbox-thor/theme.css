@@ -1,0 +1,495 @@
+/*
+  Thor Lootboxes theme: brand tokens, artwork geometry and the card animations.
+  Loaded after core/base.css, which owns the document reset, the carousel and the
+  card box model. Anything here is either a colour token, tuned to a specific
+  Thor raster, or part of a Thor animation.
+
+  Colours come from the Thor Figma variables (Thor/Text/*, Thor/Brand/Tertiary/*,
+  component/button/primary/*); geometry is in units of the 208px design grid, so
+  every measurement scales with --lb-card-width like the core does.
+*/
+
+:root {
+  /* Theme colors */
+  --lb-text: #f7f7f7;
+  /* Date badge — filled pill (Thor/Brand/Tertiary at 40%) */
+  --lb-badge-bg: rgba(88, 72, 139, 0.4);
+  --lb-badge-text: #f7f7f7;
+  /* Status badge — outline pill: countdown / Not opened */
+  --lb-badge-outline-border: rgba(88, 72, 139, 0.72);
+  --lb-badge-outline-text: #b6bdcc;
+  /* Primary button: mint on near-black (component/button/primary/*) */
+  --lb-cta-bg: #00eda6;
+  --lb-cta-text: #110e1b;
+  /* core/base.css lists --lb-card-border and --lb-active-border among the tokens
+     a brand supplies, and Thor deliberately defines neither: its card rim is
+     painted into backgrounds/*.webp, so the CSS border those two would colour is
+     switched off on .lb-card below. Re-adding either token draws a second rim
+     around the one already in the artwork. */
+  --lb-arrow-bg: #3a2f5c;
+  --lb-arrow-bg-hover: #4a3d72;
+  --lb-arrow-icon: #fcfcfc;
+  --lb-skeleton-bg: #1a1030;
+
+  /* Second text line (missed day) */
+  --lb-subtitle-text: #bdcaff;
+  /* Neon halo cast by today's card, and the flat card colour behind the art. */
+  --lb-active-glow: rgba(255, 133, 245, 0.55);
+  --lb-card-bg: #040012;
+}
+
+/* Thor's card rim is artwork, not a CSS border ------------------------------
+   Every backgrounds/*.webp carries its own neon rim, drawn out to the very edge
+   of the frame, in that state's colour — magenta for the live portal, electric
+   blue for a lock, drained violet for a missed day.
+
+   So the core's border is switched off here rather than recoloured, and turning
+   it off is a geometry fix as much as a visual one: box-sizing is border-box, a
+   border eats into the 208-wide box from the inside, .lb-card__bg fills the
+   padding box, and the raster then has to absorb the difference — cropped or
+   squashed depending on the object-fit (see .lb-card__bg below). With no border it
+   lands exact: 416x640 into 208x320 is the same ratio, nothing to absorb.
+
+   The one rim-adjacent thing the widget still draws itself is the halo OUTSIDE
+   the card (box-shadow on --active): Figma clips that away on export. */
+.lb-card {
+  border: none;
+  /* Opaque base under the artwork so a card is never a transparent hole while
+     its background raster is still decoding. Not a rim. */
+  background: var(--lb-card-bg);
+  /* The design centres the text block on a fixed vertical band per state rather
+     than pinning it to the bottom edge, so the bottom padding here is the
+     distance to the BOTTOM of that band, not to the text itself. */
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 42);
+  /* CTA: 176x32, 34 from the bottom edge of the 208x320 active frame. The gap
+     makes the derived with-button bottom padding land on 70 (see core/base.css). */
+  --lb-cta-bottom: calc(var(--lb-card-width) / 208 * 34);
+  --lb-cta-h: calc(var(--lb-card-width) / 208 * 32);
+  --lb-cta-gap: calc(var(--lb-card-width) / 208 * 4);
+  /* The text band is its own centred box, so the content flow needs no gap. */
+  --lb-content-gap: 0px;
+}
+
+.lb-card--active {
+  border: none;
+  /* Neon halo around today's card. Kept in CSS rather than baked into the
+     background raster: exporting a Figma frame clips whatever bleeds outside it,
+     and the blur is already budgeted by --lb-glow-clearance on the track. */
+  box-shadow: 0 0 var(--lb-glow-blur) 0 var(--lb-active-glow);
+  /* The active frame lifts its text band higher than a history card. */
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 59);
+}
+
+/* A rim in the raster must never be cropped, so `cover` is the wrong fit here.
+   core/base.css uses it because for Vegas the background is scenery, where losing
+   a few pixels off an edge costs nothing. For Thor those edge pixels ARE the rim.
+
+   In a settled card the two agree: 416x640 fills 208x320 and 416x576 fills 208x288
+   at the same ratio, nothing to crop either way. They part company while a card is
+   between sizes, which is the missed-day collapse — with `cover` a 288-ratio raster
+   on a 320-tall box is scaled by height to 231px wide and loses 11.5px off each
+   side, so the left and right rims are gone for the whole move.
+
+   `fill` stretches instead of cutting, so the rim stays welded to all four edges at
+   every intermediate height. The cost is distortion on one axis, which the collapse
+   easing keeps short: the card spends most of the move near its final height, so
+   the mismatch is largest only in the first frames, while it is travelling fastest.
+
+   What `fill` could NOT hide is a card standing still at the wrong ratio, and the
+   burn has exactly that beat — 240ms pinned at 320 before the collapse starts. That
+   is why a missed day has two rasters (see BACKGROUNDS in icons.js): the 320-tall
+   one carries the pinned beat, the 288-tall one everything from the collapse on.
+
+   Corollary for the next background: it must be authored to the card ratio it
+   belongs to (0.65 for the 320 active frame, 0.7222 for the 288 one), because
+   nothing crops to hide a mismatch any more — `fill` would squash it instead. */
+.lb-card__bg {
+  object-fit: fill;
+}
+
+/* Badges ------------------------------------------------------------------- */
+
+/* Thor insets the badge row 16 from the sides; a history card sits it slightly
+   higher than today's, which has more room under the portal rim. */
+.lb-card__badges {
+  top: calc(var(--lb-card-width) / 208 * 10);
+  left: calc(var(--lb-card-width) / 208 * 16);
+  right: calc(var(--lb-card-width) / 208 * 16);
+}
+
+.lb-card--active .lb-card__badges {
+  top: calc(var(--lb-card-width) / 208 * 16);
+}
+
+.lb-card__badge {
+  font-size: calc(var(--lb-card-width) / 208 * 12);
+  line-height: 1.3;
+}
+
+.lb-card__badge--outline {
+  line-height: 1.3;
+}
+
+/* Countdown pill: unlike the bare "Not opened" outline, the timer gets the same
+   translucent violet fill as the date pill so the two read as a matched pair. */
+.lb-card__badge--timer {
+  background: var(--lb-badge-bg);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  color: #ffffff;
+}
+
+/* Object geometry ----------------------------------------------------------
+   Two independent knobs, both in 208-grid units:
+     --lb-obj-w     object WIDTH. Today's card uses the 128px artwork set, a
+                    past day the 112px one (110 for the padlock).
+     --lb-obj-shift vertical nudge (translateY on .lb-card__object-wrap):
+                    positive = down. The core flex-centres the object in the
+                    space above the text band; this lands it on the design's
+                    target centre (124 of 320 for today, ~105 of 288 for a past
+                    day). */
+.lb-card--available {
+  --lb-obj-w: 128;
+  --lb-obj-shift: 30;
+}
+
+.lb-card--locked {
+  --lb-obj-w: 110;
+  --lb-obj-shift: 19;
+}
+
+.lb-card--missed {
+  --lb-obj-w: 112;
+  --lb-obj-shift: 20;
+}
+
+.lb-card--history {
+  --lb-obj-w: 112;
+  --lb-obj-shift: 20;
+}
+
+.lb-card--prize.lb-card--active {
+  --lb-obj-w: 128;
+  /* With the CTA footer reserved the free space above the text band shrinks, so
+     this state needs a bigger nudge than the CTA-less active card. */
+  --lb-obj-shift: 36;
+}
+
+.lb-card--prediction.lb-card--active {
+  --lb-obj-w: 128;
+  --lb-obj-shift: 30;
+}
+
+/* Text --------------------------------------------------------------------- */
+
+/* The design puts the copy in a fixed 90-unit band and centres it there, so a
+   one-line title and a three-line one share the same optical centre. Pinning it
+   to the bottom edge (the core default) would drift as lines are added. */
+.lb-card__text {
+  position: relative;
+  z-index: 1;
+  margin: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--lb-card-width) / 208 * 90);
+  /* The design's text box is 191 wide — wider than the card's 16 side padding
+     allows — so it is sized explicitly rather than filling the content box. */
+  width: calc(var(--lb-card-width) / 208 * 191);
+  max-width: none;
+}
+
+.lb-card__text .lb-card__title {
+  margin: 0;
+  font-size: calc(var(--lb-card-width) / 208 * 16.7);
+  line-height: 1.2;
+  white-space: pre-line;
+  text-shadow: 0 0 calc(var(--lb-card-width) / 208 * 4) #0e042d;
+}
+
+/* A missed day names the prize it lost in a smaller, cooler type and adds the
+   italic consolation line under it. */
+.lb-card--missed .lb-card__text .lb-card__title {
+  font-size: calc(var(--lb-card-width) / 208 * 14);
+  color: var(--lb-subtitle-text);
+}
+
+.lb-card__text .lb-card__subtitle {
+  margin: calc(var(--lb-card-width) / 208 * 3) 0 0;
+  font-size: calc(var(--lb-card-width) / 208 * 11);
+  font-style: italic;
+  line-height: 1.25;
+}
+
+/* CTA ---------------------------------------------------------------------- */
+
+/* Scrim behind the button ("затемнення" in the design): the portal's podium is
+   bright enough to fight the mint pill, so the bottom of the card is darkened
+   under it. Sits above the background but below the CTA's own z-index 3. */
+.lb-card__content:has(.lb-card__cta)::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--lb-card-width) / 208 * 100);
+  background: linear-gradient(180deg, rgba(4, 0, 18, 0) 0%, rgba(4, 0, 18, 0.85) 100%);
+  pointer-events: none;
+}
+
+/* --- Card activation: two phases (see OPEN_ANIMATION in open-animation.js) ---
+   Phase 1 CHARGE  (.lb-card--charging): the card wobbles on its vertical axis
+                    while awaiting the backend result — masks latency, loops.
+   Phase 2 REVEAL  (.lb-card--edge-out then --edge-in): the card turns edge-on,
+                    the content is swapped while it is invisible, and the new
+                    face swings back in with the object scaling up behind it. */
+
+/* No re-clicks once the turn has started, and keep the halo from smearing
+   across the rotation. */
+.lb-card--opening {
+  pointer-events: none;
+}
+
+/* Phase 1 — the card strains to turn over: a partial rotation that stops short
+   of edge-on so the question mark stays readable, looping until the result
+   arrives. perspective is inline in the transform because the card's parent (the
+   carousel track) must not become a 3D context for every other card. */
+.lb-card--charging {
+  animation: lb-thor-wobble 1100ms ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes lb-thor-wobble {
+  0%,
+  100% {
+    transform: perspective(800px) rotateY(0deg);
+  }
+  50% {
+    transform: perspective(800px) rotateY(-26deg);
+  }
+}
+
+/* Phase 2a — the old face turns away. Ends exactly edge-on, where the content is
+   swapped, so neither face is ever seen mirrored. */
+.lb-card--edge-out {
+  animation: lb-thor-edge-out 200ms ease-in forwards;
+  transform-origin: center;
+}
+
+@keyframes lb-thor-edge-out {
+  from {
+    transform: perspective(800px) rotateY(0deg);
+  }
+  to {
+    transform: perspective(800px) rotateY(-90deg);
+  }
+}
+
+/* Phase 2b — the new face swings in from the other side. */
+.lb-card--edge-in {
+  animation: lb-thor-edge-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  transform-origin: center;
+}
+
+@keyframes lb-thor-edge-in {
+  from {
+    transform: perspective(800px) rotateY(90deg);
+  }
+  to {
+    transform: perspective(800px) rotateY(0deg);
+  }
+}
+
+/* The prize grows into place, overshooting its final size before settling —
+   the "small -> bigger than final -> final" beat from the design notes. On
+   .lb-card__object (not the wrap) so it never clobbers the wrap's
+   --lb-obj-shift translateY. */
+.lb-card--edge-in .lb-card__object {
+  animation: lb-thor-object-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 60ms;
+}
+
+@keyframes lb-thor-object-in {
+  from {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* The button is the last thing to arrive, once the card faces front again. */
+.lb-card--edge-in .lb-card__cta {
+  animation: lb-thor-cta-in 260ms ease-out both;
+  animation-delay: 200ms;
+}
+
+@keyframes lb-thor-cta-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--lb-card-width) / 208 * 8));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* "Next up" locked card: the padlock shudders as if straining to open (a rest
+   beat, then a quick shake), pairing with the countdown ticking above it. Only
+   this one card animates — see findSpotlightLockedIndex in core/runtime.js. */
+.lb-card--next .lb-card__object {
+  animation: lb-thor-lock-nudge 2600ms ease-in-out infinite;
+  transform-origin: center 45%;
+}
+
+@keyframes lb-thor-lock-nudge {
+  0%,
+  70%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  74% {
+    transform: scale(1.04) rotate(-4deg);
+  }
+  79% {
+    transform: scale(1.04) rotate(4deg);
+  }
+  84% {
+    transform: scale(1.03) rotate(-3deg);
+  }
+  89% {
+    transform: scale(1.02) rotate(2deg);
+  }
+}
+
+/* --- Missed day: burn-out (see BURN_ANIMATION in open-animation.js) ---------
+   Two beats, and the seam between them is what makes or breaks this one:
+
+   DRAIN (.lb-card--burning)   the neon bleeds out of the portal — outer halo and
+     saturation — while the face on top of it (object, copy, badges) dissolves.
+     The card keeps its active 208x320 box, so nothing in the row moves yet.
+   SETTLE (.lb-card--burnt-in) the markup and state classes are replaced at the
+     end of the drain, where the card is at its darkest and its face is already
+     invisible, then the burnt face fades in. Nothing is seen cutting over,
+     because at that frame there is nothing visible to cut.
+
+   Two things are deliberately NOT here:
+   - the object geometry. It comes from --missed, once the art has actually been
+     swapped. Declaring it up front shrank the still-visible question mark on the
+     very first frame of the drain.
+   - the collapse into the 208x288 history box. core/transitions.js animates the
+     real box afterwards, so the contents reflow into place instead of being
+     scaled there. */
+.lb-card--burning,
+.lb-card--burnt-in {
+  pointer-events: none;
+}
+
+.lb-card--burning {
+  animation: lb-thor-burn-drain 260ms ease-out forwards;
+}
+
+.lb-card--burning .lb-card__content,
+.lb-card--burning .lb-card__badges {
+  animation: lb-thor-face-out 260ms ease-in forwards;
+}
+
+.lb-card--burnt-in {
+  animation: lb-thor-burn-settle 240ms ease-out both;
+}
+
+.lb-card--burnt-in .lb-card__content,
+.lb-card--burnt-in .lb-card__badges {
+  animation: lb-thor-face-in 240ms ease-out both;
+}
+
+/* The drain takes out the two things the widget draws itself — the outer halo and
+   the card's colour — and ends on zero glow, which is exactly what a static
+   missed card has. The rim is not animated here and must not be: it lives in the
+   background raster, and that raster is swapped at the end of the drain, where
+   the filter is at its darkest and the change does not read as a cut. */
+@keyframes lb-thor-burn-drain {
+  from {
+    box-shadow: 0 0 var(--lb-glow-blur) 0 var(--lb-active-glow);
+    filter: saturate(1) brightness(1);
+  }
+  to {
+    box-shadow: 0 0 0 0 rgba(83, 50, 152, 0);
+    filter: saturate(0.3) brightness(0.55);
+  }
+}
+
+/* Picks the drain's end value back up so the swap is not a step in brightness.
+   Releasing the filter does not relight the card: by now the background raster
+   underneath is the burnt portal, which is dim art to begin with. */
+@keyframes lb-thor-burn-settle {
+  from {
+    filter: saturate(0.3) brightness(0.55);
+  }
+  to {
+    filter: saturate(1) brightness(1);
+  }
+}
+
+@keyframes lb-thor-face-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes lb-thor-face-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Skeleton ----------------------------------------------------------------- */
+
+/* Loading placeholder. Core paints a flat --lb-skeleton-bg here; Thor overlays
+   its Figma gradient plus a magenta rim so the row reads as "Thor loading"
+   before any card art has arrived. Border thickness scales with the card. */
+.lb-card--skeleton {
+  background: linear-gradient(180deg, #6c01f3 0%, #3b0b7d 50%, #2c0a5b 100%);
+  border: calc(var(--lb-card-width) / 208 * 2) solid #6a01ee;
+}
+
+/* Figma calls for the WS mark at 50% opacity, brighter than the 32% core default. */
+.lb-card__skeleton-logo {
+  opacity: 0.5;
+}
+
+/* Accessibility: honor reduced-motion. The reveal still happens (the runtime
+   swaps straight to the result), it just does not turn, scale or fade. */
+@media (prefers-reduced-motion: reduce) {
+  .lb-card--charging,
+  .lb-card--edge-out,
+  .lb-card--edge-in,
+  .lb-card--burning,
+  .lb-card--burnt-in {
+    animation: none;
+  }
+  .lb-card--edge-in .lb-card__object,
+  .lb-card--edge-in .lb-card__cta,
+  .lb-card--next .lb-card__object,
+  .lb-card--burning .lb-card__content,
+  .lb-card--burning .lb-card__badges,
+  .lb-card--burnt-in .lb-card__content,
+  .lb-card--burnt-in .lb-card__badges {
+    animation: none;
+  }
+}

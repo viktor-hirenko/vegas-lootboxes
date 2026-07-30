@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vegas Lootboxes — пісочниця інтеграції віджета</title>
+    <title>Lootboxes — пісочниця інтеграції віджета</title>
     <style>
       :root {
         --page-bg: #f4f5f7;
@@ -420,7 +420,6 @@
 
       .sandbox-site-header__heading {
         margin: 0 0 8px;
-        font-family: 'Onest', system-ui, sans-serif;
         font-size: 24px;
         line-height: 1.2;
         font-weight: 700;
@@ -429,7 +428,6 @@
 
       .sandbox-site-header__subtitle {
         margin: 0 auto;
-        font-family: 'Onest', system-ui, sans-serif;
         font-size: 14px;
         line-height: 1.5;
         font-weight: 400;
@@ -627,7 +625,7 @@
     <div class="page">
       <div class="page__header">
         <span class="badge">Чернетка · Контракт інтеграції</span>
-        <h1>Vegas Lootboxes</h1>
+        <h1 id="page-heading">Lootboxes</h1>
         <p>
           Емулює батьківську сторінку: змінюйте дані нижче, завантажуйте їх у
           iframe через query-параметри (імітація першого завантаження) або через
@@ -641,6 +639,11 @@
         <div class="sandbox-sidebar">
           <section class="panel sandbox-controls" aria-label="Керування">
             <h2>Керування</h2>
+
+            <div class="field">
+              <label for="in-project">Проєкт (бренд)</label>
+              <select id="in-project"></select>
+            </div>
 
             <div class="field card-row__grid">
               <div>
@@ -805,9 +808,14 @@
               </button>
             </h2>
 
+            <div class="field">
+              <label for="in-scenario">Сценарій із макета</label>
+              <select id="in-scenario"></select>
+            </div>
+
             <div class="btn-row">
               <button class="btn btn-secondary btn-sm" id="btn-load-example">
-                Завантажити приклад (усі стани)
+                Перезавантажити сценарій
               </button>
             </div>
 
@@ -829,7 +837,23 @@
               <button class="btn btn-primary" id="btn-send-content">
                 Надіслати setContent (імітує пізню відповідь бекенду)
               </button>
+              <button class="btn btn-secondary" id="btn-play-burn">
+                Проіграти згорілий день
+              </button>
             </div>
+            <p
+              style="
+                font-size: 11.5px;
+                color: var(--text-muted);
+                margin: 0 0 8px;
+              "
+            >
+              «Згорілий день» позначає поточний активний день як
+              <code>missed</code>, робить наступний активним і надсилає весь ряд
+              через <code>setContent</code> — тобто рівно те, що зробить ваш
+              бекенд наступного дня. Віджет сам знаходить різницю й програє
+              перехід.
+            </p>
             <p
               style="
                 font-size: 11.5px;
@@ -900,28 +924,25 @@
               <div class="preview-stage__bg" aria-hidden="true">
                 <img
                   class="preview-stage__bg-img preview-stage__bg-img--desktop"
-                  src="./assets/backgrounds/bg-desktop.png"
+                  id="stage-bg-desktop"
                   alt=""
                 />
                 <img
                   class="preview-stage__bg-img preview-stage__bg-img--mobile"
-                  src="./assets/backgrounds/bg-mobile.png"
+                  id="stage-bg-mobile"
                   alt=""
                 />
               </div>
               <header class="sandbox-site-header" id="sandbox-site-header">
-                <h1 class="sandbox-site-header__heading">Vegas Lootboxes</h1>
-                <p class="sandbox-site-header__subtitle">
-                  Visit every day to open a box and see what luck brings
-                </p>
+                <h1 class="sandbox-site-header__heading" id="site-heading"></h1>
+                <p
+                  class="sandbox-site-header__subtitle"
+                  id="site-subtitle"
+                ></p>
               </header>
               <div class="preview-frame-wrapper">
                 <div class="preview-frame" id="preview-frame">
-                  <iframe
-                    id="widget-frame"
-                    title="Карусель віджета Vegas Lootboxes"
-                    src=""
-                  ></iframe>
+                  <iframe id="widget-frame" title="Карусель віджета" src=""></iframe>
                 </div>
               </div>
             </div>

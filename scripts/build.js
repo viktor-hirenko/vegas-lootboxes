@@ -21,7 +21,7 @@ const distDir = path.join(root, 'dist');
  */
 const BRANDS = [
   { id: 'vegas', dir: 'lootbox', label: 'Vegas Lootboxes' },
-  { id: 'thor', dir: 'lootbox-thor', label: 'Thor — Fortune Drop' },
+  { id: 'thor', dir: 'lootbox-thor', label: 'Thor Lootboxes' },
 ];
 
 const STYLE_BLOCK = /<!-- lb:styles -->[\s\S]*?<!-- \/lb:styles -->/;

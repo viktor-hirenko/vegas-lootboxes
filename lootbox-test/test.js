@@ -1,81 +1,56 @@
-// Parent-page emulator for the Vegas Lootboxes widget sandbox.
+// Parent-page emulator for the Lootboxes widgets sandbox.
 // Vanilla JS, no build step — mirrors exactly what a real integrating page
 // would do: build the initial iframe URL from query params, send/receive
 // postMessage, and react to `resize` to size the iframe correctly.
+//
+// One sandbox serves every brand: `?project=<key>` picks a preset from
+// projects.js, which supplies the widget entry, the stage dressing and the
+// example data. Nothing below is brand-specific.
+
+import { PROJECTS, resolveProjectKey } from './projects.js'
 
 const CARD_STATES = ['available', 'locked', 'prize', 'prediction', 'missed']
-const PRIZE_TYPES = ['', 'bonus-money', 'cash', 'coin', 'free-spins']
+
+const PROJECT_KEY = resolveProjectKey(new URLSearchParams(window.location.search).get('project'))
+const project = PROJECTS[PROJECT_KEY]
 
 function makeCard(overrides = {}) {
   return {
     state: 'locked',
     date: '',
     title: '',
+    subtitle: '',
     cta: '',
     tag: '',
     prizeType: '',
     active: false,
+    // Sandbox-only convenience: minutes from "send" until the card unlocks.
+    // Translated to the contract's absolute `timerTo` (epoch ms) on send,
+    // because only the parent page knows the real deadline.
+    timerMin: '',
     ...overrides,
   }
 }
 
-// A realistic "all days" ribbon: a couple of past results, today's card, then upcoming.
-const EXAMPLE_CARDS = [
-  makeCard({ state: 'prize', date: '1 Mar', title: '20 CAD bonus', prizeType: 'bonus-money' }),
-  makeCard({ state: 'missed', date: '2 Mar', title: '20 Free Spins', prizeType: 'free-spins' }),
-  makeCard({ state: 'prediction', date: '3 Mar' }),
-  makeCard({ state: 'available', date: '4 Mar' }),
-  makeCard({ state: 'locked', date: '5 Mar' }),
-  makeCard({ state: 'locked', date: '6 Mar' }),
-  makeCard({ state: 'locked', date: '7 Mar' }),
-  makeCard({ state: 'locked', date: '8 Mar' }),
-  makeCard({ state: 'locked', date: '9 Mar' }),
-  makeCard({ state: 'locked', date: '10 Mar' }),
-  makeCard({ state: 'locked', date: '11 Mar' }),
-  makeCard({ state: 'locked', date: '12 Mar' }),
-  makeCard({ state: 'locked', date: '13 Mar' }),
-  makeCard({ state: 'locked', date: '14 Mar' }),
-  makeCard({ state: 'locked', date: '15 Mar' }),
-  makeCard({ state: 'locked', date: '16 Mar' }),
-  makeCard({ state: 'locked', date: '17 Mar' }),
-  makeCard({ state: 'locked', date: '18 Mar' }),
-  makeCard({ state: 'locked', date: '19 Mar' }),
-  makeCard({ state: 'locked', date: '20 Mar' }),
-  makeCard({ state: 'locked', date: '21 Mar' }),
-  makeCard({ state: 'locked', date: '22 Mar' }),
-  makeCard({ state: 'locked', date: '23 Mar' }),
-  makeCard({ state: 'locked', date: '24 Mar' }),
-  makeCard({ state: 'locked', date: '25 Mar' }),
-  makeCard({ state: 'locked', date: '26 Mar' }),
-  makeCard({ state: 'locked', date: '27 Mar' }),
-  makeCard({ state: 'locked', date: '28 Mar' }),
-  makeCard({ state: 'locked', date: '29 Mar' }),
-  makeCard({ state: 'locked', date: '30 Mar' }),
-]
+/** Prize-type options for the selects: brand vocabulary plus an empty choice. */
+const PRIZE_TYPES = ['', ...project.prizeTypes]
+
+/** @param {string} id @returns {object[]} a fresh copy of that scenario's cards */
+function scenarioCards(id) {
+  const scenario = project.scenarios.find((s) => s.id === id) ?? project.scenarios[0]
+  return scenario.cards.map((card) => makeCard(card))
+}
 
 /** Delay before setContent when "late backend" is enabled (skeleton demo). */
 const LATE_BACKEND_DELAY_MS = 2000
 
-/** Default prize payload when the mock config leaves fields blank. */
-const DEFAULT_OPEN_PRIZE = {
-  title: '20 CAD bonus',
-  prizeType: 'coin',
-  cta: 'Go to Bonuses',
-  tag: 'Opened',
-}
-
-/** Default prediction payload for the mock backend panel. */
-const DEFAULT_OPEN_PREDICTION = {
-  title: 'Something is waiting for you in the future',
-  cta: 'Show prediction',
-}
-
 /** Card ids/indexes currently waiting on the mock open API. */
 const openInFlight = new Set()
 
-// The widget always lives in the sibling `lootbox/` folder — same layout in
-// the repo, in `dist/`, and on the CDN under `widgets-smartico/`.
-const WIDGET_ENTRY_PATH = '../lootbox/index.html'
+// Widget entry for the selected brand. Layout is identical in the repo, in
+// `dist/` and on the CDN under `widgets-smartico/`, so one relative path works
+// in all three.
+const WIDGET_ENTRY_PATH = project.entry
 
 // Origin the widget iframe is served from. Since the entry path is relative,
 // this resolves to the sandbox's own origin. Used to target outgoing
@@ -95,14 +70,15 @@ const state = {
   debug: false,
   lateBackend: false,
   viewport: 'desktop',
-  cards: JSON.parse(JSON.stringify(EXAMPLE_CARDS)),
+  scenario: project.scenarios[0].id,
+  cards: scenarioCards(project.scenarios[0].id),
   // Mock backend: what the "API" returns when an available card is clicked.
   // The sandbox listens for cardClick and, after `delayMs`, sends setCardState —
   // exactly what a real parent page does once its backend responds.
   mock: {
     enabled: true,
     outcome: 'prize', // 'prize' | 'prediction'
-    prizeType: 'coin',
+    prizeType: project.mockDefaults.prize.prizeType,
     title: '',
     cta: '',
     tag: '',
@@ -120,6 +96,68 @@ const logEl = document.getElementById('log')
 const cardRowsEl = document.getElementById('card-rows')
 
 const globalInputs = document.querySelectorAll('[data-global]')
+
+// --- Project chrome --------------------------------------------------------
+
+/**
+ * Dress the sandbox for the selected brand: switcher state, page and iframe
+ * titles, the fake parent-page header and the preview backdrop. Everything here
+ * reads from the preset, so a new brand needs no changes in this file.
+ */
+function applyProjectChrome() {
+  const switcher = document.getElementById('in-project')
+  if (switcher) {
+    switcher.innerHTML = Object.entries(PROJECTS)
+      .map(
+        ([key, preset]) =>
+          `<option value="${key}"${key === PROJECT_KEY ? ' selected' : ''}>${escapeHtml(preset.label)}</option>`,
+      )
+      .join('')
+    // A brand swap changes assets, vocabulary and example data, so reload the
+    // sandbox with the new key instead of trying to migrate live state.
+    switcher.addEventListener('change', () => {
+      const url = new URL(window.location.href)
+      url.searchParams.set('project', switcher.value)
+      window.location.href = url.href
+    })
+  }
+
+  document.title = `${project.label} · Пісочниця`
+  const pageHeading = document.getElementById('page-heading')
+  if (pageHeading) pageHeading.textContent = project.label
+  iframe.title = `Карусель віджета ${project.label}`
+
+  const heading = document.getElementById('site-heading')
+  const subtitle = document.getElementById('site-subtitle')
+  if (heading) heading.textContent = project.header.heading
+  if (subtitle) subtitle.textContent = project.header.subtitle
+
+  previewStage.style.backgroundColor = project.stage.color
+  previewStage.style.backgroundImage = project.stage.gradient ?? 'none'
+
+  const bgDesktop = document.getElementById('stage-bg-desktop')
+  const bgMobile = document.getElementById('stage-bg-mobile')
+  // A brand with no bitmap backdrop falls back to the gradient above.
+  applyStageImage(bgDesktop, project.stage.desktop)
+  applyStageImage(bgMobile, project.stage.mobile)
+
+  // Brands differ in which optional contract fields they render.
+  document.querySelectorAll('[data-supports]').forEach((el) => {
+    el.hidden = !project.supports[el.dataset.supports]
+  })
+}
+
+/**
+ * @param {HTMLImageElement | null} img
+ * @param {string} [src]
+ */
+function applyStageImage(img, src) {
+  if (!img) return
+  if (src) img.src = src
+  // Inline `display` rather than `hidden`, because the viewport rules in the
+  // stylesheet set `display: block` on these and would win over `[hidden]`.
+  img.style.display = src ? '' : 'none'
+}
 
 // --- Helpers -------------------------------------------------------------
 
@@ -147,20 +185,40 @@ function buildWidgetUrl({ includeCards = true } = {}) {
       if (card.state) params.set(`c${i}_state`, card.state)
       if (card.date) params.set(`c${i}_date`, card.date)
       if (card.title) params.set(`c${i}_title`, card.title)
+      if (card.subtitle) params.set(`c${i}_subtitle`, card.subtitle)
       if (card.cta) params.set(`c${i}_cta`, card.cta)
       if (card.tag) params.set(`c${i}_tag`, card.tag)
       if (card.prizeType) params.set(`c${i}_prize`, card.prizeType)
       if (card.active) params.set(`c${i}_active`, 'true')
+      const timerTo = deadlineFromMinutes(card.timerMin)
+      if (timerTo) params.set(`c${i}_timer_to`, String(timerTo))
     })
   }
 
   return `${WIDGET_ENTRY_PATH}?${params.toString()}`
 }
 
+/**
+ * Turn the sandbox's "minutes from now" input into the contract's absolute
+ * deadline. Returns 0 when the field is empty or not a positive number.
+ * @param {string | number} minutes
+ * @returns {number}
+ */
+function deadlineFromMinutes(minutes) {
+  const value = Number(minutes)
+  if (!Number.isFinite(value) || value <= 0) return 0
+  return Date.now() + value * 60_000
+}
+
+/** Strip sandbox-only fields and resolve the deadline for one card payload. */
+function cardPayload(card, position) {
+  const { timerMin, ...rest } = card
+  const timerTo = deadlineFromMinutes(timerMin)
+  return { index: position + 1, ...rest, ...(timerTo ? { timerTo } : {}) }
+}
+
 function sendCardsContent() {
-  postToWidget('setContent', {
-    cards: state.cards.map((card, position) => ({ index: position + 1, ...card })),
-  })
+  postToWidget('setContent', { cards: state.cards.map(cardPayload) })
 }
 
 /**
@@ -211,8 +269,8 @@ function scheduleMockBackend(data) {
     const id = String(data.id ?? cardIndex + 1)
 
     if (outcome === 'prediction') {
-      const title = state.mock.title || DEFAULT_OPEN_PREDICTION.title
-      const cta = state.mock.cta || DEFAULT_OPEN_PREDICTION.cta
+      const title = state.mock.title || project.mockDefaults.prediction.title
+      const cta = state.mock.cta || project.mockDefaults.prediction.cta
       Object.assign(card, { state: 'prediction', title, cta, active: true })
       renderCardRows()
       postToWidget('setCardState', {
@@ -225,10 +283,11 @@ function scheduleMockBackend(data) {
         active: true,
       })
     } else {
-      const prizeType = state.mock.prizeType || DEFAULT_OPEN_PRIZE.prizeType
-      const title = state.mock.title || DEFAULT_OPEN_PRIZE.title
-      const cta = state.mock.cta || DEFAULT_OPEN_PRIZE.cta
-      const tag = state.mock.tag || DEFAULT_OPEN_PRIZE.tag
+      const { prize } = project.mockDefaults
+      const prizeType = state.mock.prizeType || prize.prizeType
+      const title = state.mock.title || prize.title
+      const cta = state.mock.cta || prize.cta
+      const tag = state.mock.tag || prize.tag
 
       Object.assign(card, { state: 'prize', title, prizeType, cta, tag, active: true })
       renderCardRows()
@@ -302,6 +361,13 @@ function cardRowTemplate(card, index) {
       `<option value="${p}" ${p === (card.prizeType || '') ? 'selected' : ''}>${p || '— тип призу —'}</option>`
   ).join('')
 
+  const subtitleInput = project.supports.subtitle
+    ? `<input type="text" data-field="subtitle" placeholder="Підзаголовок (другий рядок)" value="${escapeHtml(card.subtitle)}" style="grid-column: span 2" />`
+    : ''
+  const timerInput = project.supports.timer
+    ? `<input type="number" min="0" step="1" data-field="timerMin" placeholder="Таймер, хв до відкриття" value="${escapeHtml(card.timerMin)}" />`
+    : ''
+
   return `
     <div class="card-row" data-index="${index}">
       <div class="card-row__head">
@@ -314,8 +380,10 @@ function cardRowTemplate(card, index) {
         <input type="text" data-field="date" placeholder="Дата (1 Mar)" value="${escapeHtml(card.date)}" />
         <label class="card-row__check"><input type="checkbox" data-field="active" ${card.active ? 'checked' : ''} /> active (сьогодні)</label>
         <input type="text" data-field="title" placeholder="Заголовок" value="${escapeHtml(card.title)}" style="grid-column: span 2" />
+        ${subtitleInput}
         <input type="text" data-field="cta" placeholder="CTA (лише prize)" value="${escapeHtml(card.cta)}" />
         <input type="text" data-field="tag" placeholder="Бейдж статусу (Opened/Not opened)" value="${escapeHtml(card.tag)}" />
+        ${timerInput}
       </div>
       <div class="card-row__actions">
         <button type="button" class="btn btn-secondary btn-sm" data-action="apply-state">Надіслати setCardState</button>
@@ -356,16 +424,19 @@ cardRowsEl.addEventListener('click', event => {
   }
 
   if (button.dataset.action === 'apply-state') {
+    const timerTo = deadlineFromMinutes(card.timerMin)
     postToWidget('setCardState', {
       index: index + 1,
       id: String(index + 1),
       state: card.state,
       title: card.title || undefined,
+      subtitle: card.subtitle || undefined,
       cta: card.cta || undefined,
       tag: card.tag || undefined,
       date: card.date || undefined,
       prizeType: card.prizeType || undefined,
       active: card.active || undefined,
+      timerTo: timerTo || undefined,
     })
   }
 
@@ -383,9 +454,58 @@ document.getElementById('btn-add-card').addEventListener('click', () => {
   renderCardRows()
 })
 
-document.getElementById('btn-load-example').addEventListener('click', () => {
-  state.cards = JSON.parse(JSON.stringify(EXAMPLE_CARDS))
+const scenarioSelect = document.getElementById('in-scenario')
+
+function fillScenarioOptions() {
+  if (!scenarioSelect) return
+  scenarioSelect.innerHTML = project.scenarios
+    .map(
+      (scenario) =>
+        `<option value="${scenario.id}"${scenario.id === state.scenario ? ' selected' : ''}>${escapeHtml(scenario.label)}</option>`,
+    )
+    .join('')
+}
+
+scenarioSelect?.addEventListener('change', () => {
+  state.scenario = scenarioSelect.value
+  state.cards = scenarioCards(state.scenario)
   renderCardRows()
+  log('info', 'scenario loaded', { scenario: state.scenario })
+})
+
+document.getElementById('btn-load-example').addEventListener('click', () => {
+  state.cards = scenarioCards(state.scenario)
+  renderCardRows()
+})
+
+/**
+ * Replay the missed-day transition the way production will trigger it: take the
+ * current active day, mark it missed, promote the next day to available and push
+ * the whole row with `setContent`. The widget diffs the row itself and animates.
+ */
+document.getElementById('btn-play-burn')?.addEventListener('click', () => {
+  const activeIndex = state.cards.findIndex(
+    (card) => card.state === 'available' || (card.active && card.state !== 'locked'),
+  )
+  if (activeIndex < 0) {
+    log('info', 'burn: no active day in the current row — nothing to expire')
+    return
+  }
+
+  const burnt = state.cards[activeIndex]
+  Object.assign(burnt, {
+    state: 'missed',
+    active: false,
+    cta: '',
+    prizeType: burnt.prizeType || project.mockDefaults.prize.prizeType,
+    title: burnt.title || project.mockDefaults.prize.title,
+  })
+
+  const next = state.cards[activeIndex + 1]
+  if (next) Object.assign(next, { state: 'available', title: '', subtitle: '', timerMin: '' })
+
+  renderCardRows()
+  sendCardsContent()
 })
 
 // --- Iframe reload / setContent ------------------------------------------
@@ -482,7 +602,9 @@ function syncMockPrizeFieldsVisibility() {
 /** When the mock outcome changes, pre-fill title + CTA with that outcome's defaults. */
 function syncMockOutcomeDefaults() {
   const defaults =
-    state.mock.outcome === 'prediction' ? DEFAULT_OPEN_PREDICTION : DEFAULT_OPEN_PRIZE
+    state.mock.outcome === 'prediction'
+      ? project.mockDefaults.prediction
+      : project.mockDefaults.prize
   state.mock.title = defaults.title
   state.mock.cta = defaults.cta
   if (mockTitleInput) mockTitleInput.value = defaults.title
@@ -517,7 +639,12 @@ mockDelayInput?.addEventListener('input', () => {
 function fillMockInputs() {
   if (mockEnabledInput) mockEnabledInput.checked = state.mock.enabled
   if (mockOutcomeInput) mockOutcomeInput.value = state.mock.outcome
-  if (mockPrizeTypeInput) mockPrizeTypeInput.value = state.mock.prizeType
+  if (mockPrizeTypeInput) {
+    mockPrizeTypeInput.innerHTML = project.prizeTypes
+      .map((type) => `<option value="${type}">${escapeHtml(type)}</option>`)
+      .join('')
+    mockPrizeTypeInput.value = state.mock.prizeType
+  }
   // Empty title/cta on first load → show defaults for the selected outcome.
   if (!state.mock.title && !state.mock.cta) syncMockOutcomeDefaults()
   if (mockTitleInput) mockTitleInput.value = state.mock.title
@@ -565,6 +692,8 @@ window.addEventListener('message', event => {
 
 // --- Boot -------------------------------------------------------------------
 
+applyProjectChrome()
+fillScenarioOptions()
 fillGlobalInputs()
 fillMockInputs()
 renderCardRows()
