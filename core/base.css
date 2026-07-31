@@ -115,6 +115,16 @@ body {
   display: none;
 }
 
+/* A card's snap area travels with its transform, and mandatory snapping has to
+   keep the scroll port pinned to it — so an animating card drags the whole row
+   sideways. Thor's reveal turns the card on its Y axis, which moves that edge
+   by most of a card width and pulls the track ~100px out and back with it.
+   Snapping is suspended for the duration instead of being weakened globally:
+   the class goes away when the sequence ends, so nothing has to be restored. */
+.lb-carousel__track:has(.lb-card--opening) {
+  scroll-snap-type: none;
+}
+
 /* Carousel arrows: circular buttons that scale with the embed width. */
 .lb-carousel__arrow {
   position: absolute;

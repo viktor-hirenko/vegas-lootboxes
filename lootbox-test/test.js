@@ -44,8 +44,45 @@ function scenarioCards(id) {
 /** Delay before setContent when "late backend" is enabled (skeleton demo). */
 const LATE_BACKEND_DELAY_MS = 2000
 
-/** Card ids/indexes currently waiting on the mock open API. */
-const openInFlight = new Set()
+/**
+ * Cards between the click and the end of the reveal, mapped to their safety
+ * timer. Two things read it: the mock, so a second click can't double-answer,
+ * and auto-apply, so a `setContent` can't rebuild the row mid-animation.
+ */
+const openInFlight = new Map()
+
+/**
+ * `animationComplete` ends an open. The timer is only there so the sandbox
+ * unblocks if that never arrives — the widget declining to animate must not
+ * leave auto-apply wedged.
+ */
+const OPEN_SAFETY_MS = 6000
+
+/** @param {string} key @param {number} [extraMs] time the reply itself will take */
+function markOpenStarted(key, extraMs = 0) {
+  markOpenFinished(key)
+  openInFlight.set(
+    key,
+    window.setTimeout(() => openInFlight.delete(key), OPEN_SAFETY_MS + extraMs),
+  )
+}
+
+/** @param {string} key */
+function markOpenFinished(key) {
+  const timer = openInFlight.get(key)
+  if (timer != null) clearTimeout(timer)
+  openInFlight.delete(key)
+}
+
+/** Row indexes edited since the last delivery, highlighted until the widget has them. */
+const pendingRows = new Set()
+
+/**
+ * Row indexes currently unfolded. Reset from the row set on every full render
+ * and then follows the user, so redrawing one row does not close it.
+ * @type {Set<number>}
+ */
+let expandedRows = new Set()
 
 // Widget entry for the selected brand. Layout is identical in the repo, in
 // `dist/` and on the CDN under `widgets-smartico/`, so one relative path works
@@ -69,6 +106,10 @@ const state = {
   origin: HAS_STRICT_ORIGIN ? WIDGET_ORIGIN : '',
   debug: false,
   lateBackend: false,
+  // Republish the row on every edit. On by default because the form is only
+  // useful as a preview when what you type is what you see; turning it off
+  // leaves the buttons as the only way to deliver, which is the older flow.
+  autoApply: true,
   viewport: 'desktop',
   scenario: project.scenarios[0].id,
   cards: scenarioCards(project.scenarios[0].id),
@@ -141,10 +182,10 @@ function applyProjectChrome() {
   applyStageImage(bgDesktop, project.stage.desktop)
   applyStageImage(bgMobile, project.stage.mobile)
 
-  // Brands differ in which optional contract fields they render.
-  document.querySelectorAll('[data-supports]').forEach((el) => {
-    el.hidden = !project.supports[el.dataset.supports]
-  })
+  const flowReveal = document.getElementById('flow-step-reveal')
+  if (flowReveal && project.integrationFlowReveal) {
+    flowReveal.textContent = project.integrationFlowReveal
+  }
 }
 
 /**
@@ -217,8 +258,83 @@ function cardPayload(card, position) {
   return { index: position + 1, ...rest, ...(timerTo ? { timerTo } : {}) }
 }
 
+/**
+ * A form row is the whole truth about its card, so the command carries every
+ * field — blanks included. Omitting a field instead (or sending `undefined`,
+ * which the widget's store drops) would make setCardState add-only: a CTA you
+ * cleared would stay on screen and a checkbox you unticked would never take.
+ * @param {ReturnType<typeof makeCard>} card
+ * @param {number} position 0-based row index
+ */
+function cardStatePayload(card, position) {
+  return {
+    index: position + 1,
+    id: String(position + 1),
+    state: card.state,
+    date: card.date ?? '',
+    title: card.title ?? '',
+    subtitle: card.subtitle ?? '',
+    cta: card.cta ?? '',
+    tag: card.tag ?? '',
+    prizeType: card.prizeType ?? '',
+    active: Boolean(card.active),
+    // 0 reads as "no deadline" on the widget side, which is how a cleared
+    // timer field gets through.
+    timerTo: deadlineFromMinutes(card.timerMin),
+  }
+}
+
 function sendCardsContent() {
+  const activeCount = state.cards.reduce((count, card) => count + (card.active ? 1 : 0), 0)
+  if (activeCount > 1) {
+    log(
+      'info',
+      `⚠ у ряду ${activeCount} активні картки — у проді активний лише сьогоднішній день`,
+    )
+  }
   postToWidget('setContent', { cards: state.cards.map(cardPayload) })
+  clearPendingRows()
+}
+
+/** Long enough to swallow a burst of keystrokes, short enough to feel live. */
+const AUTO_APPLY_DEBOUNCE_MS = 300
+
+/** @type {ReturnType<typeof setTimeout> | null} */
+let autoApplyTimer = null
+
+/**
+ * Deliver the edited row without the user having to remember which button
+ * republishes it. Debounced, because typing a title fires an event per keystroke.
+ * @param {string} reason what the user just did, for the log
+ */
+function requestAutoApply(reason) {
+  if (!state.autoApply) return
+  if (autoApplyTimer != null) clearTimeout(autoApplyTimer)
+  autoApplyTimer = window.setTimeout(() => {
+    autoApplyTimer = null
+    // A card is mid-open: setContent would rebuild the row and cut the reveal
+    // off. Wait another beat instead of dropping the edit — an open always ends,
+    // if not on animationComplete then on its safety timer.
+    if (openInFlight.size > 0) {
+      requestAutoApply(reason)
+      return
+    }
+    log('info', `авто-застосування: ${reason}`)
+    sendCardsContent()
+  }, AUTO_APPLY_DEBOUNCE_MS)
+}
+
+/** @param {number} index */
+function markRowPending(index) {
+  pendingRows.add(index)
+  cardRowsEl.querySelector(`.card-row[data-index="${index}"]`)?.classList.add('is-pending')
+}
+
+function clearPendingRows() {
+  pendingRows.clear()
+  cardRowsEl
+    .querySelectorAll('.card-row.is-pending')
+    .forEach((row) => row.classList.remove('is-pending'))
 }
 
 /**
@@ -238,6 +354,16 @@ function findCardIndexFromEvent(data) {
     if (index >= 0 && index < state.cards.length) return index
   }
   return -1
+}
+
+/**
+ * The mock rewrites the form row as well as the widget, so say so — otherwise
+ * fields the user typed change under them with no explanation.
+ * @param {number} cardIndex 0-based row index
+ * @param {object} fields what the mock wrote
+ */
+function logMockOverwrite(cardIndex, fields) {
+  log('info', `мок переписав картку №${cardIndex + 1} у формі`, fields)
 }
 
 /**
@@ -261,17 +387,17 @@ function scheduleMockBackend(data) {
   if (card.state !== 'available') return
 
   const { outcome, delayMs } = state.mock
-  openInFlight.add(key)
+  markOpenStarted(key, delayMs)
   log('info', `mock backend: outcome="${outcome}", replying in ${delayMs}ms`)
 
   window.setTimeout(() => {
-    openInFlight.delete(key)
     const id = String(data.id ?? cardIndex + 1)
 
     if (outcome === 'prediction') {
       const title = state.mock.title || project.mockDefaults.prediction.title
       const cta = state.mock.cta || project.mockDefaults.prediction.cta
       Object.assign(card, { state: 'prediction', title, cta, active: true })
+      logMockOverwrite(cardIndex, { state: 'prediction', title, cta })
       renderCardRows()
       postToWidget('setCardState', {
         index: cardIndex + 1,
@@ -290,6 +416,7 @@ function scheduleMockBackend(data) {
       const tag = state.mock.tag || prize.tag
 
       Object.assign(card, { state: 'prize', title, prizeType, cta, tag, active: true })
+      logMockOverwrite(cardIndex, { state: 'prize', title, prizeType, cta, tag })
       renderCardRows()
       postToWidget('setCardState', {
         index: cardIndex + 1,
@@ -352,7 +479,64 @@ globalInputs.forEach(input => {
 
 // --- Rendering: card rows -------------------------------------------------
 
+/**
+ * Why a field has no effect on this card, or '' when it does. Every field stays
+ * in the payload — the contract does not change with the state — so the ones
+ * the widget will ignore are disabled and explained rather than hidden.
+ * @param {ReturnType<typeof makeCard>} card
+ * @returns {(field: string) => string}
+ */
+function inapplicableReason(card) {
+  const isResult = card.state === 'prize' || card.state === 'prediction'
+
+  return (field) => {
+    switch (field) {
+      case 'prizeType':
+        return card.state === 'prize' || card.state === 'missed'
+          ? ''
+          : 'Малюнок призу віджет читає лише в станах prize і missed'
+      case 'active':
+        return isResult
+          ? ''
+          : 'active позначає сьогоднішній результат — лише prize і prediction'
+      case 'cta':
+        if (!isResult) return 'Кнопка є лише в результату дня — prize або prediction'
+        return card.active ? '' : 'Кнопка з’являється лише в активної картки — увімкніть active'
+      case 'tag':
+        if (card.state === 'missed') return ''
+        if (!isResult) return 'Бейдж статусу є лише на картці з результатом'
+        return project.supports.tagOnHistory
+          ? ''
+          : 'Цей бренд лишає відкритий день із самою датою — бейдж не рендериться'
+      case 'timerMin':
+        return card.state === 'locked' ? '' : 'Таймер відлічує час до відкриття — лише стан locked'
+      default:
+        return ''
+    }
+  }
+}
+
+/**
+ * playOpen replays the reveal without a click, which only makes sense for a day
+ * that could actually be opened. On locked and missed it leaves the widget in a
+ * state production never produces (a prize with no title), so it is blocked.
+ * @param {ReturnType<typeof makeCard>} card
+ * @returns {string} reason to block, or '' when playOpen is fair game
+ */
+function playOpenBlockedReason(card) {
+  return card.state === 'locked' || card.state === 'missed'
+    ? `playOpen на «${card.state}» зробив би результат, якого в проді не буває`
+    : ''
+}
+
 function cardRowTemplate(card, index) {
+  const reasonFor = inapplicableReason(card)
+  /** @param {string} field */
+  const lock = (field) => {
+    const reason = reasonFor(field)
+    return reason ? ` disabled title="${escapeHtml(reason)}"` : ''
+  }
+
   const options = CARD_STATES.map(
     s => `<option value="${s}" ${s === card.state ? 'selected' : ''}>${s}</option>`
   ).join('')
@@ -365,37 +549,108 @@ function cardRowTemplate(card, index) {
     ? `<input type="text" data-field="subtitle" placeholder="Підзаголовок (другий рядок)" value="${escapeHtml(card.subtitle)}" style="grid-column: span 2" />`
     : ''
   const timerInput = project.supports.timer
-    ? `<input type="number" min="0" step="1" data-field="timerMin" placeholder="Таймер, хв до відкриття" value="${escapeHtml(card.timerMin)}" />`
+    ? `<input type="number" min="0" step="1" data-field="timerMin" placeholder="Таймер, хв до відкриття" value="${escapeHtml(card.timerMin)}"${lock('timerMin')} />`
     : ''
 
+  const playOpenBlocked = playOpenBlockedReason(card)
+  const playOpenAttrs = playOpenBlocked
+    ? ` disabled title="${escapeHtml(playOpenBlocked)}"`
+    : ''
+
+  const summary = [card.date, card.title].filter(Boolean).join(' · ')
+
   return `
-    <div class="card-row" data-index="${index}">
-      <div class="card-row__head">
-        <strong>Картка №${index + 1}</strong>
+    <details class="card-row${pendingRows.has(index) ? ' is-pending' : ''}" data-index="${index}"${expandedRows.has(index) ? ' open' : ''}>
+      <summary class="card-row__head">
+        <span class="card-row__summary">
+          <strong>№${index + 1}</strong>
+          <span class="card-row__chip" data-state="${card.state}">${card.state}</span>
+          <span class="card-row__meta">${escapeHtml(summary)}</span>
+        </span>
         <button type="button" class="btn btn-danger btn-sm" data-action="remove">Видалити</button>
-      </div>
+      </summary>
       <div class="card-row__grid">
         <select data-field="state">${options}</select>
-        <select data-field="prizeType">${prizeOptions}</select>
+        <select data-field="prizeType"${lock('prizeType')}>${prizeOptions}</select>
         <input type="text" data-field="date" placeholder="Дата (1 Mar)" value="${escapeHtml(card.date)}" />
-        <label class="card-row__check"><input type="checkbox" data-field="active" ${card.active ? 'checked' : ''} /> active (сьогодні)</label>
+        <label class="card-row__check" title="${escapeHtml(reasonFor('active') || 'Сьогоднішній результат: підсвічена картка, до якої їде карусель')}"><input type="checkbox" data-field="active" ${card.active ? 'checked' : ''}${lock('active')} /> active (сьогодні)</label>
         <input type="text" data-field="title" placeholder="Заголовок" value="${escapeHtml(card.title)}" style="grid-column: span 2" />
         ${subtitleInput}
-        <input type="text" data-field="cta" placeholder="CTA (лише prize)" value="${escapeHtml(card.cta)}" />
-        <input type="text" data-field="tag" placeholder="Бейдж статусу (Opened/Not opened)" value="${escapeHtml(card.tag)}" />
+        <input type="text" data-field="cta" placeholder="CTA (кнопка результату)" value="${escapeHtml(card.cta)}"${lock('cta')} />
+        <input type="text" data-field="tag" placeholder="Бейдж статусу (Opened/Not opened)" value="${escapeHtml(card.tag)}"${lock('tag')} />
         ${timerInput}
       </div>
       <div class="card-row__actions">
         <button type="button" class="btn btn-secondary btn-sm" data-action="apply-state">Надіслати setCardState</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-action="play-open-prize" style="opacity: 0.65">playOpen (prize)</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-action="play-open-prediction" style="opacity: 0.65">playOpen (prediction)</button>
+        <button type="button" class="btn btn-secondary btn-sm btn-test-only" data-action="play-open-prize"${playOpenAttrs}>playOpen (prize)</button>
+        <button type="button" class="btn btn-secondary btn-sm btn-test-only" data-action="play-open-prediction"${playOpenAttrs}>playOpen (prediction)</button>
       </div>
-    </div>
+    </details>
   `
 }
 
+/** Below this, folding the tail away costs more attention than it saves. */
+const MIN_FOLDED_PADDING = 3
+
+/**
+ * Where the month's padding starts: the run of locked days that closes the row
+ * and carries no scenario of its own. The first locked day is deliberately left
+ * out of it — the widget spotlights it as "next", so it is part of the story.
+ * @param {ReturnType<typeof makeCard>[]} cards
+ * @returns {number} 0-based index, or -1 when there is nothing worth folding
+ */
+function paddingStartIndex(cards) {
+  let runStart = cards.length
+  while (runStart > 0 && cards[runStart - 1].state === 'locked') runStart -= 1
+
+  const foldFrom = runStart + 1
+  return cards.length - foldFrom >= MIN_FOLDED_PADDING ? foldFrom : -1
+}
+
 function renderCardRows() {
-  cardRowsEl.innerHTML = state.cards.map(cardRowTemplate).join('')
+  const paddingStart = paddingStartIndex(state.cards)
+  expandedRows = new Set(
+    state.cards.map((_, index) => index).filter((index) => paddingStart < 0 || index < paddingStart),
+  )
+
+  const rows = state.cards.map(cardRowTemplate)
+  const folded = paddingStart < 0 ? 0 : state.cards.length - paddingStart
+
+  cardRowsEl.innerHTML = folded
+    ? `${rows.slice(0, paddingStart).join('')}
+       <details class="card-rows__tail">
+         <summary>Заблоковані дні ${paddingStart + 1}–${state.cards.length} (${folded})</summary>
+         <div class="card-rows">${rows.slice(paddingStart).join('')}</div>
+       </details>`
+    : rows.join('')
+
+  syncMockTarget()
+}
+
+/**
+ * Redraw one row in place. A full `renderCardRows()` would take the caret with
+ * it, so anything that happens while the user is in the form goes through here.
+ * @param {number} index
+ */
+function replaceCardRow(index) {
+  const row = cardRowsEl.querySelector(`.card-row[data-index="${index}"]`)
+  if (!row) return
+  row.outerHTML = cardRowTemplate(state.cards[index], index)
+  syncMockTarget()
+}
+
+/**
+ * Keep the collapsed header truthful while the row below it is being typed
+ * into — the header is what the row looks like once it folds back up.
+ * @param {number} index
+ */
+function refreshRowSummary(index) {
+  const row = cardRowsEl.querySelector(`.card-row[data-index="${index}"]`)
+  if (!row) return
+  const card = state.cards[index]
+  row.querySelector('.card-row__meta').textContent = [card.date, card.title]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 function syncCardField(event) {
@@ -405,10 +660,33 @@ function syncCardField(event) {
   const index = Number(row.dataset.index)
   state.cards[index][field] =
     event.target.type === 'checkbox' ? event.target.checked : event.target.value
+
+  markRowPending(index)
+  // These two decide which of the remaining inputs the widget will even look
+  // at, so the row has to redraw to match. Everything else only patches the
+  // header, because redrawing would take the caret out of the field being typed
+  // into.
+  if (field === 'state' || field === 'active') replaceCardRow(index)
+  else refreshRowSummary(index)
+  requestAutoApply(`картка №${index + 1}, поле ${field}`)
 }
 
 cardRowsEl.addEventListener('input', syncCardField)
 cardRowsEl.addEventListener('change', syncCardField)
+
+// `toggle` does not bubble, so it is caught on the way down. Tracking it keeps
+// a row open across the redraw that follows a state change.
+cardRowsEl.addEventListener(
+  'toggle',
+  (event) => {
+    const row = event.target
+    if (!(row instanceof HTMLDetailsElement) || !row.classList.contains('card-row')) return
+    const index = Number(row.dataset.index)
+    if (row.open) expandedRows.add(index)
+    else expandedRows.delete(index)
+  },
+  true,
+)
 
 cardRowsEl.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]')
@@ -417,41 +695,47 @@ cardRowsEl.addEventListener('click', event => {
   const index = Number(row.dataset.index)
   const card = state.cards[index]
 
+  // The delete button sits inside the row's <summary>; without this a click on
+  // it would also fold the row it is about to remove.
+  if (button.closest('summary')) event.preventDefault()
+
   if (button.dataset.action === 'remove') {
     state.cards.splice(index, 1)
+    pendingRows.clear()
     renderCardRows()
+    requestAutoApply(`видалено картку №${index + 1}`)
     return
   }
 
   if (button.dataset.action === 'apply-state') {
-    const timerTo = deadlineFromMinutes(card.timerMin)
-    postToWidget('setCardState', {
-      index: index + 1,
-      id: String(index + 1),
-      state: card.state,
-      title: card.title || undefined,
-      subtitle: card.subtitle || undefined,
-      cta: card.cta || undefined,
-      tag: card.tag || undefined,
-      date: card.date || undefined,
-      prizeType: card.prizeType || undefined,
-      active: card.active || undefined,
-      timerTo: timerTo || undefined,
-    })
+    postToWidget('setCardState', cardStatePayload(card, index))
+    pendingRows.delete(index)
+    replaceCardRow(index)
   }
 
-  if (button.dataset.action === 'play-open-prize') {
-    postToWidget('playOpen', { index: index + 1, state: 'prize' })
-  }
+  const playOpenOutcome =
+    button.dataset.action === 'play-open-prize'
+      ? 'prize'
+      : button.dataset.action === 'play-open-prediction'
+        ? 'prediction'
+        : ''
 
-  if (button.dataset.action === 'play-open-prediction') {
-    postToWidget('playOpen', { index: index + 1, state: 'prediction' })
+  if (playOpenOutcome) {
+    markOpenStarted(String(index + 1))
+    postToWidget('playOpen', { index: index + 1, state: playOpenOutcome })
+    // playOpen mutates the widget directly, so the form has to follow it — an
+    // out-of-date row means the next setContent silently rolls the reveal back.
+    Object.assign(card, { state: playOpenOutcome, active: true })
+    replaceCardRow(index)
+    log('info', `playOpen перевів картку №${index + 1} у «${playOpenOutcome}» — рядок форми оновлено`)
   }
 })
 
 document.getElementById('btn-add-card').addEventListener('click', () => {
   state.cards.push(makeCard())
   renderCardRows()
+  markRowPending(state.cards.length - 1)
+  requestAutoApply(`додано картку №${state.cards.length}`)
 })
 
 const scenarioSelect = document.getElementById('in-scenario')
@@ -469,13 +753,17 @@ function fillScenarioOptions() {
 scenarioSelect?.addEventListener('change', () => {
   state.scenario = scenarioSelect.value
   state.cards = scenarioCards(state.scenario)
+  pendingRows.clear()
   renderCardRows()
   log('info', 'scenario loaded', { scenario: state.scenario })
+  requestAutoApply(`сценарій «${state.scenario}»`)
 })
 
 document.getElementById('btn-load-example').addEventListener('click', () => {
   state.cards = scenarioCards(state.scenario)
+  pendingRows.clear()
   renderCardRows()
+  requestAutoApply('перезавантаження сценарію')
 })
 
 /**
@@ -546,6 +834,18 @@ document.getElementById('btn-send-content').addEventListener('click', () => {
   sendCardsContent()
 })
 
+const autoApplyInput = document.getElementById('in-auto-apply')
+autoApplyInput?.addEventListener('change', () => {
+  state.autoApply = autoApplyInput.checked
+  log(
+    'info',
+    state.autoApply
+      ? 'авто-застосування увімкнено — кожна правка форми йде у віджет'
+      : 'авто-застосування вимкнено — доставляйте ряд кнопкою «Надіслати setContent»',
+  )
+  if (state.autoApply && pendingRows.size > 0) requestAutoApply('накопичені правки')
+})
+
 document.getElementById('btn-loading-on').addEventListener('click', () => {
   postToWidget('setLoading', { loading: true })
 })
@@ -584,8 +884,23 @@ const mockPrizeTypeInput = document.getElementById('mock-prize-type')
 const mockTitleInput = document.getElementById('mock-title')
 const mockCtaInput = document.getElementById('mock-cta')
 const mockTagInput = document.getElementById('mock-tag')
+const mockTagField = document.getElementById('mock-tag-field')
 const mockDelayInput = document.getElementById('mock-delay')
 const mockDelayVal = document.getElementById('mock-delay-val')
+const mockTargetEl = document.getElementById('mock-target')
+
+/**
+ * The mock only ever answers a click on the one openable day, so name it —
+ * otherwise the panel reads as if it applied to the whole row.
+ */
+function syncMockTarget() {
+  if (!mockTargetEl) return
+  const index = state.cards.findIndex((card) => card.state === 'available')
+  mockTargetEl.textContent =
+    index >= 0
+      ? `Відповідає на клік по картці №${index + 1}`
+      : 'У ряду немає картки в стані available — мок не спрацює'
+}
 
 /** Prize-only fields (prize type, badge) are irrelevant for a prediction
  * outcome — dim just those. Title + CTA stay editable for both, since an active
@@ -636,7 +951,17 @@ mockDelayInput?.addEventListener('input', () => {
   if (mockDelayVal) mockDelayVal.textContent = mockDelayInput.value
 })
 
+function syncMockOutcomeLabels() {
+  if (!mockOutcomeInput || !project.mockOutcomeLabels) return
+  const { prize, prediction } = project.mockOutcomeLabels
+  const prizeOpt = mockOutcomeInput.querySelector('option[value="prize"]')
+  const predictionOpt = mockOutcomeInput.querySelector('option[value="prediction"]')
+  if (prizeOpt) prizeOpt.textContent = prize
+  if (predictionOpt) predictionOpt.textContent = prediction
+}
+
 function fillMockInputs() {
+  syncMockOutcomeLabels()
   if (mockEnabledInput) mockEnabledInput.checked = state.mock.enabled
   if (mockOutcomeInput) mockOutcomeInput.value = state.mock.outcome
   if (mockPrizeTypeInput) {
@@ -650,6 +975,8 @@ function fillMockInputs() {
   if (mockTitleInput) mockTitleInput.value = state.mock.title
   if (mockCtaInput) mockCtaInput.value = state.mock.cta
   if (mockTagInput) mockTagInput.value = state.mock.tag
+  // A brand that drops the badge on an opened day has nothing to type here.
+  if (mockTagField) mockTagField.hidden = !project.supports.tagOnHistory
   if (mockDelayInput) mockDelayInput.value = String(state.mock.delayMs)
   if (mockDelayVal) mockDelayVal.textContent = String(state.mock.delayMs)
   syncMockPrizeFieldsVisibility()
@@ -687,7 +1014,11 @@ window.addEventListener('message', event => {
   }
 
   // animationComplete now fires AFTER the flash reveal — the moment for the FE
-  // to open its result popup. Sandbox only logs it (no popup here).
+  // to open its result popup. Sandbox only logs it (no popup here), and treats
+  // it as the end of the open so auto-apply may deliver again.
+  if (type === 'animationComplete') {
+    markOpenFinished(String(data?.id ?? data?.index ?? ''))
+  }
 })
 
 // --- Boot -------------------------------------------------------------------
@@ -696,5 +1027,6 @@ applyProjectChrome()
 fillScenarioOptions()
 fillGlobalInputs()
 fillMockInputs()
+if (autoApplyInput) autoApplyInput.checked = state.autoApply
 renderCardRows()
 reloadIframe()

@@ -182,8 +182,14 @@
       }
 
       .btn:disabled {
-        opacity: 0.5;
+        opacity: 0.4;
         cursor: not-allowed;
+      }
+
+      /* Dimmed to keep sandbox-only levers from reading as part of the
+         contract. A class, not an inline style, so `:disabled` can still win. */
+      .btn-test-only {
+        opacity: 0.65;
       }
 
       .btn-primary {
@@ -234,6 +240,29 @@
         margin-top: 2px;
       }
 
+      .hint {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        line-height: 1.45;
+        margin: 0 0 8px;
+      }
+
+      /* Separates the two delivery transports inside one block: query params on
+         first load vs postMessage afterwards. */
+      .subhead {
+        margin: 16px 0 8px;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--accent-strong);
+      }
+
+      .hint--target {
+        font-weight: 600;
+        color: var(--accent-strong);
+      }
+
       .url-details {
         margin-bottom: 14px;
       }
@@ -273,15 +302,130 @@
         background: #fbfbfd;
       }
 
+      /* Edited but not yet delivered to the widget. */
+      .card-row.is-pending {
+        border-color: var(--accent);
+        background: #faf7ff;
+      }
+
+      /* Collapsed by default for the locked days that only pad the month out,
+         so the editor shows the days a scenario is actually about. */
       .card-row__head {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+      }
+
+      .card-row__head::-webkit-details-marker {
+        display: none;
+      }
+
+      .card-row[open] > .card-row__head {
         margin-bottom: 8px;
       }
 
       .card-row__head strong {
         font-size: 12px;
+      }
+
+      .card-row__summary {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        font-size: 12px;
+      }
+
+      .card-row__summary::before {
+        content: '▸';
+        color: var(--text-muted);
+        font-size: 10px;
+      }
+
+      .card-row[open] .card-row__summary::before {
+        content: '▾';
+      }
+
+      .card-row__chip {
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #f1f1f4;
+        color: #6b7280;
+      }
+
+      .card-row__chip[data-state='available'] {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .card-row__chip[data-state='prize'] {
+        background: #ede9fe;
+        color: var(--accent-strong);
+      }
+
+      .card-row__chip[data-state='prediction'] {
+        background: #e0f2fe;
+        color: #075985;
+      }
+
+      .card-row__chip[data-state='missed'] {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+
+      .card-row__meta {
+        color: var(--text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* Deleting is an expanded-row action: 25 delete buttons in a collapsed
+         list is noise, and an accidental one is destructive. */
+      .card-row:not([open]) .card-row__head .btn-danger {
+        display: none;
+      }
+
+      /* The trailing run of locked days — the padding that makes the row look
+         like a real month. Folded away as one line. */
+      .card-rows__tail {
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+
+      .card-rows__tail > summary {
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+
+      .card-rows__tail > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .card-rows__tail > summary::before {
+        content: '▸ ';
+      }
+
+      .card-rows__tail[open] > summary::before {
+        content: '▾ ';
+      }
+
+      .card-rows__tail[open] > summary {
+        margin-bottom: 8px;
       }
 
       .card-row__grid {
@@ -298,6 +442,20 @@
         border: 1px solid var(--border);
         border-radius: 6px;
         font-size: 12px;
+      }
+
+      /* Fields the widget ignores in the row's current state. Kept in place so
+         the contract stays visible; the reason is in the title attribute. */
+      .card-row__grid input:disabled,
+      .card-row__grid select:disabled {
+        background: #f1f1f4;
+        color: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      .card-row__check:has(input:disabled) {
+        color: #9ca3af;
+        cursor: not-allowed;
       }
 
       .card-row__check {
@@ -647,7 +805,13 @@
 
             <div class="field card-row__grid">
               <div>
-                <label for="in-lang">Мова (lang)</label>
+                <label for="in-lang"
+                  >Мова (lang)
+                  <span class="field-hint"
+                    >Іде в URL віджета, але тексти карток він не перекладає —
+                    вони приходять із форми нижче</span
+                  ></label
+                >
                 <input type="text" id="in-lang" data-global="lang" />
               </div>
               <div>
@@ -666,14 +830,60 @@
                 >debug=true (відкриває window.__lootboxWidget)</label
               >
             </div>
+
+            <div class="divider"></div>
+
+            <!-- 1. What the row contains -->
+            <h2>
+              Сценарій і картки
+              <button class="btn btn-secondary btn-sm" id="btn-add-card">
+                + Додати картку
+              </button>
+            </h2>
+            <p class="hint">
+              Список нижче — це і є вміст ряду. Поля, які віджет у поточному
+              стані картки не читає, вимкнені; наведіть курсор, щоб побачити
+              чому.
+            </p>
+
+            <div class="field">
+              <label for="in-scenario">Сценарій із макета</label>
+              <select id="in-scenario"></select>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" id="btn-load-example">
+                Перезавантажити сценарій
+              </button>
+            </div>
+
+            <div class="card-rows" id="card-rows"></div>
+
+            <div class="divider"></div>
+
+            <!-- 2. How that row reaches the widget -->
+            <h2>Доставка у віджет</h2>
+            <p class="hint">
+              Два шляхи, обидва справжні: дані в URL при відкритті iframe або
+              <code>postMessage</code> уже після завантаження.
+            </p>
+
             <div class="field field-inline">
-              <input type="checkbox" id="in-late-backend" />
-              <label for="in-late-backend"
-                >Пізня відповідь бекенду (skeleton → setContent через
-                2&nbsp;с)</label
+              <input type="checkbox" id="in-auto-apply" checked />
+              <label for="in-auto-apply"
+                >Авто-застосування — після кожної правки форми ряд іде у віджет
+                через <code>setContent</code></label
               >
             </div>
 
+            <h3 class="subhead">Перше завантаження — query-параметри</h3>
+            <div class="field field-inline">
+              <input type="checkbox" id="in-late-backend" />
+              <label for="in-late-backend"
+                >Пізня відповідь бекенду: відкрити iframe без карток (буде
+                скелетон) і надіслати їх через 2&nbsp;с</label
+              >
+            </div>
             <div class="btn-row">
               <button class="btn btn-primary" id="btn-reload">
                 Перезавантажити iframe (query-параметри)
@@ -687,21 +897,43 @@
               <div class="preview-url" id="url-display"></div>
             </details>
 
+            <h3 class="subhead">Після завантаження — postMessage</h3>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="btn-send-content">
+                Надіслати setContent (весь ряд)
+              </button>
+              <button class="btn btn-secondary" id="btn-play-burn">
+                Проіграти згорілий день
+              </button>
+            </div>
+            <p class="hint">
+              <code>setContent</code> надсилає <b>весь ряд із форми</b> — усі
+              картки зі списку вище, а не лише ту, яку ви щойно правили.
+            </p>
+            <p class="hint">
+              «Згорілий день» позначає поточний активний день як
+              <code>missed</code>, робить наступний активним і надсилає весь ряд
+              через <code>setContent</code> — тобто рівно те, що зробить ваш
+              бекенд наступного дня. Віджет сам знаходить різницю й програє
+              перехід.
+            </p>
+            <p class="hint">
+              <code>setCardState</code> оновлює одну картку — кнопка в її рядку
+              вище. Так виглядає відповідь вашого API на клік.
+            </p>
+
             <div class="divider"></div>
 
+            <!-- 3. What answers a click -->
             <h2>Мок бекенду (симуляція відповіді API)</h2>
-            <p
-              style="
-                font-size: 11.5px;
-                color: var(--text-muted);
-                margin: 0 0 10px;
-              "
-            >
+            <p class="hint hint--target" id="mock-target"></p>
+            <p class="hint">
               Обираєте, що «поверне бекенд» при кліку на активну картку, і
               затримку відповіді. Пісочниця ловить <code>cardClick</code> і
               через задану затримку надсилає <code>setCardState</code> — так
               само, як робитиме ваш реальний бекенд. Віджет крутить «зарядку»
-              кулі, поки чекає, а потім спалахом відкриває результат.
+              кулі, поки чекає, а потім спалахом відкриває результат. Відповідь
+              мока перезаписує і рядок форми — це видно в лозі.
             </p>
 
             <div class="field field-inline">
@@ -714,12 +946,8 @@
             <div class="field">
               <label for="mock-outcome">Результат при кліку</label>
               <select id="mock-outcome">
-                <option value="prize">
-                  prize — виграш (подарунок + конфетті)
-                </option>
-                <option value="prediction">
-                  prediction — без призу (без конфетті)
-                </option>
+                <option value="prize">prize</option>
+                <option value="prediction">prediction</option>
               </select>
             </div>
 
@@ -769,7 +997,7 @@
                   placeholder="Go to Bonuses / Show prediction"
                 />
               </div>
-              <div data-prize-only>
+              <div data-prize-only id="mock-tag-field">
                 <label
                   for="mock-tag"
                   style="
@@ -801,81 +1029,9 @@
 
             <div class="divider"></div>
 
-            <h2>
-              Картки
-              <button class="btn btn-secondary btn-sm" id="btn-add-card">
-                + Додати картку
-              </button>
-            </h2>
-
-            <div class="field">
-              <label for="in-scenario">Сценарій із макета</label>
-              <select id="in-scenario"></select>
-            </div>
-
-            <div class="btn-row">
-              <button class="btn btn-secondary btn-sm" id="btn-load-example">
-                Перезавантажити сценарій
-              </button>
-            </div>
-
-            <div class="card-rows" id="card-rows"></div>
-
-            <div class="divider"></div>
-
-            <h2>Дії postMessage (боєвий контракт)</h2>
-            <p
-              style="
-                font-size: 11.5px;
-                color: var(--text-muted);
-                margin: 0 0 8px;
-              "
-            >
-              Ці команди відповідають реальному продакшен-потоку.
-            </p>
-            <div class="btn-row">
-              <button class="btn btn-primary" id="btn-send-content">
-                Надіслати setContent (імітує пізню відповідь бекенду)
-              </button>
-              <button class="btn btn-secondary" id="btn-play-burn">
-                Проіграти згорілий день
-              </button>
-            </div>
-            <p
-              style="
-                font-size: 11.5px;
-                color: var(--text-muted);
-                margin: 0 0 8px;
-              "
-            >
-              «Згорілий день» позначає поточний активний день як
-              <code>missed</code>, робить наступний активним і надсилає весь ряд
-              через <code>setContent</code> — тобто рівно те, що зробить ваш
-              бекенд наступного дня. Віджет сам знаходить різницю й програє
-              перехід.
-            </p>
-            <p
-              style="
-                font-size: 11.5px;
-                color: var(--text-muted);
-                margin: 0 0 8px;
-              "
-            >
-              Кнопка <code>Надіслати setCardState</code> для кожної картки — у
-              відповідному рядку вище. Імітує оновлення стану однієї картки
-              після відповіді вашого API.
-            </p>
-
-            <div class="divider"></div>
-
+            <!-- 4. Sandbox-only levers -->
             <h2>Тільки для тесту</h2>
-            <p
-              style="
-                font-size: 11.5px;
-                color: var(--text-muted);
-                margin: 0 0 8px;
-              "
-            >
+            <p class="hint">
               Ці команди <b>не використовуються в продакшен-інтеграції</b>. Вони
               потрібні лише для ручного тестування віджета в цій пісочниці.
             </p>
@@ -887,12 +1043,12 @@
                 setLoading(false) — примусово приховати скелетон
               </button>
             </div>
-            <p
-              style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 0"
-            >
-              Кнопка <code>Надіслати playOpen</code> для кожної картки — у
-              відповідному рядку вище. Запускає draft-анімацію без реального
-              кліку (тільки для тесту).
+            <p class="hint" style="margin-bottom: 0">
+              Кнопка <code>playOpen</code> для кожної картки — у відповідному
+              рядку вище. Запускає анімацію відкриття без реального кліку і
+              одразу підганяє рядок форми під результат. На
+              <code>locked</code> і <code>missed</code> вимкнена: там вона
+              створила б стан, якого в проді не буває.
             </p>
           </section>
         </div>
@@ -994,7 +1150,7 @@
           <li>
             <b>Коли API відповів</b> — надіслати <code>setCardState</code> з
             результатом (<code>prize</code>/<code>prediction</code>). Віджет
-            спалахом відкриває результат (конфетті лише для <code>prize</code>).
+            <span id="flow-step-reveal">спалахом відкриває результат</span>.
           </li>
           <li>
             <b>На <code>animationComplete</code></b> (після спалаху) — показати

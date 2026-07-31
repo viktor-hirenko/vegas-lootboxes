@@ -14,8 +14,15 @@
  * @property {string[]} prizeTypes values offered in the prize-type selects
  * @property {{ prize: object, prediction: object }} mockDefaults payload the mock
  *   backend falls back to when its fields are left blank
- * @property {{ subtitle: boolean, timer: boolean }} supports which optional
- *   contract fields this brand renders — the extra inputs stay hidden otherwise
+ * @property {{ prize: string, prediction: string }} mockOutcomeLabels copy for the
+ *   mock-outcome select — must match each brand's open animation, not Vegas-only
+ *   confetti wording on Thor
+ * @property {string} integrationFlowReveal one line in the integration cheat sheet —
+ *   how this brand's open animation reads after setCardState
+ * @property {{ subtitle: boolean, timer: boolean, tagOnHistory: boolean }} supports
+ *   which optional contract fields this brand renders. `subtitle` and `timer`
+ *   gate whole inputs; `tagOnHistory` says whether an opened day keeps its
+ *   status badge, which decides if the sandbox lets you type one
  * @property {Array<{ id: string, label: string, cards: object[] }>} scenarios
  *   ready-made day ribbons; the first one loads on boot
  */
@@ -122,7 +129,13 @@ export const PROJECTS = Object.freeze({
         cta: 'Show prediction',
       }),
     }),
-    supports: Object.freeze({ subtitle: false, timer: false }),
+    mockOutcomeLabels: Object.freeze({
+      prize: 'prize — виграш (спалах + конфетті)',
+      prediction: 'prediction — передбачення (без конфетті)',
+    }),
+    integrationFlowReveal:
+      'спалахом відкриває результат (конфетті лише для prize)',
+    supports: Object.freeze({ subtitle: false, timer: false, tagOnHistory: true }),
     scenarios: scenarios({
       win: 'bonus-money',
       winTitle: '20 CAD bonus',
@@ -157,7 +170,15 @@ export const PROJECTS = Object.freeze({
         cta: 'Show prediction',
       }),
     }),
-    supports: Object.freeze({ subtitle: true, timer: true }),
+    mockOutcomeLabels: Object.freeze({
+      prize: 'prize — виграш (flip + подарунок)',
+      prediction: 'prediction — передбачення (без призу)',
+    }),
+    integrationFlowReveal: 'flip-анімацією відкриває результат',
+    // `tagOnHistory: false` — an opened Thor day is a bare date pill, so a
+    // status badge sent for it is dropped by the widget (same reason
+    // `mockDefaults.prize` carries no `tag`).
+    supports: Object.freeze({ subtitle: true, timer: true, tagOnHistory: false }),
     scenarios: scenarios({
       win: 'free-spins',
       winTitle: '20 Free Spins',
