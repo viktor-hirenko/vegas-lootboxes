@@ -54,6 +54,8 @@ tests/          юнит-тесты ядра (node --test) и e2e (playwright)
 7. **`lootbox-thor/backgrounds-anim.generated.js` не править руками.** Он
    генерируется `npm run build:animations` вместе с растрами; хэши в именах файлов
    — это ключ кэша CDN. Правка вручную рассинхронизирует манифест с диском.
+   Как устроен весь конвейер (ffmpeg → avifenc/img2webp → манифест → гейт в
+   рантайме) — `lootbox-thor/ANIMATIONS.md`.
 
 ## Добавить новый бренд
 

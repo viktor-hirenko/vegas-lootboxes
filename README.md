@@ -86,8 +86,14 @@ Then open:
 
 ## Card animations (Thor)
 
-Thor's `available` and `locked` cards use an animated portal background instead of
-a single frame. The loops are built from the source videos in
+> Full write-up — the conversion pipeline, the size ladder, every format decision
+> and why, and how the runtime decides which card gets to animate — lives in
+> [`lootbox-thor/ANIMATIONS.md`](lootbox-thor/ANIMATIONS.md). This section is the
+> short version.
+
+Thor's today card, and the one locked day the player is actually waiting for, use
+an animated portal background instead of a single frame; every other locked day
+shows the same portal as a still. The loops are built from the source videos in
 `lootbox-thor/animation-source/` — this is the only step in the repo that needs
 **system** binaries rather than npm packages:
 
@@ -122,8 +128,7 @@ Notable behaviour, all of it intentional:
 At runtime a card shows its static poster immediately and the loop is layered on top
 only once the card scrolls near the viewport, then released again when it leaves
 (`lootbox-thor/bg-anim.js`). Under `prefers-reduced-motion: reduce` the loop is never
-requested at all. This matters because every locked day animates and a full month is
-~26 of them.
+requested at all.
 
 ## Testing
 
