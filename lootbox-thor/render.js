@@ -11,8 +11,9 @@ import {
   renderBadges,
 } from '../core/card-model.js';
 import { formatCountdown } from '../core/countdown.js';
-import { BACKGROUNDS, OBJECTS_LG, OBJECTS_SM, MISSED_ART } from './icons.js';
+import { BACKGROUNDS, BG_SIZES, OBJECTS_LG, OBJECTS_SM, MISSED_ART } from './icons.js';
 import { PRIZE, DEFAULT_TITLES, DEFAULT_MISSED_SUBTITLE } from './vocabulary.js';
+import { observeBgAnim } from './bg-anim.js';
 
 /**
  * @param {object} card
@@ -21,13 +22,18 @@ import { PRIZE, DEFAULT_TITLES, DEFAULT_MISSED_SUBTITLE } from './vocabulary.js'
  *   held at the active 208x320 box — true only for the missed-day burn, where
  *   the collapse into 208x288 has not run yet. Picks the missed portal drawn
  *   for that taller box so the rim is not stretched (see icons.js).
+ * @param {boolean} spotlight this is the "next up" locked day — the only closed
+ *   card that animates. The core works out which one that is
+ *   (`findSpotlightLockedIndex`); every other locked day gets the same portal as a
+ *   single frame, because a month is up to 26 of them and 26 running loops is
+ *   decode work nobody asked for.
  */
-function backgroundFor(card, active, pinnedActive) {
+function backgroundFor(card, active, pinnedActive, spotlight) {
   switch (card.state) {
     case CARD_STATE.AVAILABLE:
       return BACKGROUNDS.available;
     case CARD_STATE.LOCKED:
-      return BACKGROUNDS.locked;
+      return spotlight ? BACKGROUNDS.locked : BACKGROUNDS.lockedStatic;
     case CARD_STATE.MISSED:
       return pinnedActive ? BACKGROUNDS.missedActive : BACKGROUNDS.missed;
     default:
@@ -105,18 +111,83 @@ function renderText(card) {
 }
 
 /**
+ * The background: a first-frame poster that is always painted, plus — on the two
+ * states whose art is an animated loop — the loop itself, layered over it.
+ *
+ * Three things here are load-bearing and easy to "clean up" by mistake:
+ *
+ * 1. The poster stays EAGER while the loop is `loading="lazy"`. `whenImagesReady`
+ *    in core/runtime.js gates the skeleton -> content swap on every non-lazy
+ *    `<img>`, so an eager loop would hold the skeleton for as long as it takes to
+ *    download (or the full 4s timeout). It also filters on the ATTRIBUTE, which is
+ *    why the loop keeps `loading="lazy"` even though it has no source yet: an
+ *    `<img>` with no `src` reports `complete` with `naturalWidth === 0` and fires
+ *    neither `load` nor `error`, so without the attribute it would sit in the
+ *    pending set until the timeout expired.
+ * 2. The loop's candidates live in `data-srcset`, never `srcset`. Nothing is
+ *    requested until bg-anim.js promotes them, which is what keeps ~26 locked
+ *    cards from all decoding at once and what makes the reduced-motion path a
+ *    genuine "never requested" rather than "loaded then hidden".
+ * 3. `sizes` is on every `<source>` AND on the `<img>`. A `<source>` with width
+ *    descriptors and no `sizes` falls back to `100vw`, which on a 208px card
+ *    would select the 624-wide candidate on every phone.
+ *
+ * A legacy state renders the exact `<img>` markup it always has — no wrapper, no
+ * srcset — because `stageFace` in open.js stages only `missed` faces and blocks on
+ * that element specifically.
+ */
+function renderBackground(background) {
+  const { poster, anim } = background;
+
+  if (!poster.avif) {
+    return `<img class="lb-card__bg" src="${poster.fallback}" alt="" aria-hidden="true" decoding="async" />`;
+  }
+
+  // The wrapper is not decoration: core/base.css rounds .lb-card__bg with
+  // `border-radius: inherit`, and inherit takes the PARENT's value — so wrapping the
+  // poster in a bare <picture> would silently resolve that to 0. The card hides
+  // square corners on every state except the active one, which is `overflow: visible`
+  // to let its halo out, so there the poster corners poke out past the rounded rim.
+  // .lb-card__bg-frame carries the radius on, and clips as well.
+  const posterImg = `<picture class="lb-card__bg-frame">
+        <source type="image/avif" srcset="${poster.avif}" sizes="${BG_SIZES}" />
+        <source type="image/webp" srcset="${poster.webp}" sizes="${BG_SIZES}" />
+        <img class="lb-card__bg" src="${poster.fallback}" alt="" aria-hidden="true" decoding="async" />
+      </picture>`;
+
+  if (!anim) return posterImg;
+
+  return `${posterImg}
+      <span class="lb-card__bg-anim" data-lb-bg-anim aria-hidden="true">
+        <picture class="lb-card__anim">
+          <source type="image/avif" data-srcset="${anim.avif}" sizes="${BG_SIZES}" />
+          <source type="image/webp" data-srcset="${anim.webp}" sizes="${BG_SIZES}" />
+          <img class="lb-card__anim-img" data-srcset="${anim.webp}" data-src="${anim.fallback}"
+               sizes="${BG_SIZES}" alt="" aria-hidden="true" decoding="async" loading="lazy" />
+        </picture>
+      </span>`;
+}
+
+/**
  * @param {object} card
- * @param {{ active?: boolean, pinnedActive?: boolean }} [ctx]
+ * @param {{ active?: boolean, pinnedActive?: boolean, spotlight?: boolean }} [ctx]
+ *   `spotlight` comes from the core (see `backgroundFor`). It defaults to false,
+ *   which is right for the two callers in open.js: the reveal renders a
+ *   prize/prediction and the burn renders a missed day, so neither is ever the
+ *   next-up locked card.
  * @returns {string}
  */
-export function renderInner(card, { active = isActive(card), pinnedActive = false } = {}) {
-  const background = backgroundFor(card, active, pinnedActive);
+export function renderInner(
+  card,
+  { active = isActive(card), pinnedActive = false, spotlight = false } = {},
+) {
+  const background = backgroundFor(card, active, pinnedActive, spotlight);
   const object = objectFor(card, active);
   // CTA on today's opened result, only while the parent sends non-empty `cta`.
   const cta = hasCta(card) ? `<span class="lb-card__cta">${escapeHtml(card.cta)}</span>` : '';
 
   return `
-    <img class="lb-card__bg" src="${background}" alt="" aria-hidden="true" decoding="async" />
+    ${renderBackground(background)}
     <div class="lb-card__content">
       <span class="lb-card__object-wrap">
         <img class="lb-card__object" src="${object}" alt="" aria-hidden="true" decoding="async" />
@@ -133,4 +204,10 @@ export function renderInner(card, { active = isActive(card), pinnedActive = fals
  * CSS — the same two classes also cover today's opened card. */
 export function cardClasses(card, { active } = {}) {
   return OPENED_RESULT_STATES.includes(card.state) && !active ? ['lb-card--history'] : [];
+}
+
+/** Hands the card to the animation gate, which decides whether its portal loop is
+ * allowed to load at all (see bg-anim.js). Cards without a loop are ignored there. */
+export function onCardMounted(el) {
+  observeBgAnim(el);
 }

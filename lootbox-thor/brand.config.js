@@ -2,7 +2,7 @@
 // past this object into the brand folder.
 
 import { PRIZE } from './vocabulary.js';
-import { renderInner, cardClasses } from './render.js';
+import { renderInner, cardClasses, onCardMounted } from './render.js';
 import { startOpenCharge, playOpenReveal, playMissedBurn } from './open.js';
 
 export const brand = Object.freeze({
@@ -15,6 +15,7 @@ export const brand = Object.freeze({
   }),
   renderInner,
   cardClasses,
+  onCardMounted,
   startOpenCharge,
   playOpenReveal,
   playMissedBurn,

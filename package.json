@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm test && npm run test:e2e",
-    "convert:webp": "node scripts/convert-webp.mjs"
+    "convert:webp": "node scripts/convert-webp.mjs",
+    "build:animations": "node scripts/build-card-animations.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.0",

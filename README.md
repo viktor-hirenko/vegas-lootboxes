@@ -41,11 +41,14 @@ vegas-lootboxes/
 │  ├─ theme.css          # brand tokens, geometry, animations
 │  └─ assets/
 ├─ lootbox-thor/         # Thor widget — same shape, different art
+│  ├─ bg-anim.js         # gates when a card's animated portal may load
+│  ├─ backgrounds-anim.generated.js   # GENERATED — see "Card animations" below
+│  └─ animation-source/  # source videos: a build input, never shipped
 ├─ lootbox-test/         # integration sandbox (parent-page emulator)
 │  ├─ index.html
 │  ├─ projects.js        # brand presets — add a brand here to get it in the switcher
 │  └─ test.js            # loads the selected widget from ../<brand-folder>/index.html
-├─ scripts/              # optional dev tooling (serve/build), not shipped
+├─ scripts/              # optional dev tooling (serve/build/assets), not shipped
 ├─ INTEGRATION.md        # canonical integration contract (single source of truth)
 └─ package.json
 ```
@@ -80,6 +83,47 @@ Then open:
 - Thor widget alone: `http://localhost:4173/lootbox-thor/index.html`
 - Integration sandbox: `http://localhost:4173/lootbox-test/index.html` — the
   project switcher in the sidebar reloads with `?project=vegas` / `?project=thor`
+
+## Card animations (Thor)
+
+Thor's `available` and `locked` cards use an animated portal background instead of
+a single frame. The loops are built from the source videos in
+`lootbox-thor/animation-source/` — this is the only step in the repo that needs
+**system** binaries rather than npm packages:
+
+```bash
+brew install ffmpeg libavif webp
+npm run build:animations
+```
+
+It writes 36 files into `lootbox-thor/assets/images/backgrounds-anim/` (animated
+AVIF at 1x–3x, animated WebP at 1x–2x, plus static first-frame posters in both
+formats at every density) and regenerates
+`lootbox-thor/backgrounds-anim.generated.js`, which the widget imports. Outputs are
+committed, so a fresh clone needs none of this unless the source videos change.
+
+Notable behaviour, all of it intentional:
+
+- **Filenames carry a content hash** derived from the source video plus the encoder
+  settings plus the tool versions. Replace a video, re-run, and every URL changes —
+  so a CDN cannot serve the old animation. Same inputs produce the same names, so
+  re-running is a no-op with no git diff.
+- **ffmpeg only decodes and scales.** `avifenc` (libavif) and `img2webp` (libwebp)
+  do the encoding, because Homebrew's ffmpeg 9.0 formula dropped `libaom` and
+  `libwebp` — its `webp` codecs are decode-only. The script's header explains this
+  and the validation it does in exchange.
+- **No alpha anywhere.** Rounded corners and the 2px rim are CSS
+  (`.lb-card::after` in `theme.css`), which is smaller and sidesteps the one
+  animated-AVIF bug class that is broken in all three engines.
+- `--dry-run` prints the plan, hashes and every command without encoding;
+  `--help` lists the rest (`--quality`, `--fps`, `--only`, `--force`,
+  `--fail-on-budget`, `--emit-frames`).
+
+At runtime a card shows its static poster immediately and the loop is layered on top
+only once the card scrolls near the viewport, then released again when it leaves
+(`lootbox-thor/bg-anim.js`). Under `prefers-reduced-motion: reduce` the loop is never
+requested at all. This matters because every locked day animates and a full month is
+~26 of them.
 
 ## Testing
 

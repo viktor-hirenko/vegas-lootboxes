@@ -10,6 +10,7 @@ import { warmAssets, waitForImageElement } from '../core/asset-preload.js';
 import { OBJECTS_LG, MISSED_ART, BACKGROUNDS } from './icons.js';
 import { PRIZE } from './vocabulary.js';
 import { renderInner, cardClasses } from './render.js';
+import { observeBgAnim } from './bg-anim.js';
 import { OPEN_ANIMATION, BURN_ANIMATION } from './open-animation.js';
 
 /** Every 128px object the reveal could land on. Warmed during Phase 1 so the
@@ -18,7 +19,13 @@ import { OPEN_ANIMATION, BURN_ANIMATION } from './open-animation.js';
  * Backgrounds are not in here on purpose: a revealed card keeps the portal it is
  * already showing (`backgroundFor` in render.js returns `available` for an active
  * result), so the reveal re-uses a raster that is already on screen. The burn is
- * the one swap that changes the background — see `stageFace`. */
+ * the one swap that changes the background — see `stageFace`.
+ *
+ * And the animated portal must never be added here either: `warmAssets` does
+ * `new Image().src = url` with no `srcset`/`sizes`, so it can only warm one
+ * arbitrary density — a second download of the wrong file. The reveal already
+ * re-uses whatever candidate the pre-click card selected (same `sizes`, same DPR,
+ * same URL, so a memory-cache hit). */
 const REVEAL_ASSET_URLS = Object.freeze(Object.values(OBJECTS_LG));
 
 function wait(ms) {
@@ -70,6 +77,12 @@ function swapToResult(el, card, extraClasses, staged) {
     ...extraClasses,
   ].join(' ');
   el.dataset.state = card.state;
+  // This function is the single funnel for both the flip reveal and the burn
+  // settle, and neither goes through `core/card.js` — so without this call the
+  // freshly built portal layer would never be handed to the gate, and a revealed
+  // card would stay static for good. A no-op on the burn, whose missed face has no
+  // animated background at all.
+  observeBgAnim(el);
 }
 
 /**
@@ -79,12 +92,18 @@ function swapToResult(el, card, extraClasses, staged) {
  *
  * Why the background specifically, and why the element rather than the URL:
  *
- * Thor's neon rim is painted into the background raster (see icons.js), and that
- * raster is the one layer a swap does not fade in — `lb-thor-face-in` covers
- * `.lb-card__content`, not `.lb-card__bg`. So a background that is still loading
- * is not a late portal, it is a card with no rim on any side, sitting on the flat
- * `--lb-card-bg`, in full view. Everything inside the content wrapper can arrive a
- * frame late without being seen, which is what `warmAssets` is enough for.
+ * This only ever stages a `missed` face, which is one of the three legacy rasters
+ * that still carry their neon rim in the artwork (see BACKGROUNDS in icons.js) —
+ * and that raster is the one layer a swap does not fade in, because
+ * `lb-thor-face-in` covers `.lb-card__content`, not `.lb-card__bg`. So a background
+ * that is still loading is not a late portal, it is a card with no rim on any side,
+ * sitting on the flat `--lb-card-bg`, in full view. Everything inside the content
+ * wrapper can arrive a frame late without being seen, which is what `warmAssets` is
+ * enough for.
+ *
+ * Because the staged face is always a legacy state, it is also always the plain
+ * single-source `<img>` markup — no `srcset`, no animation layer — so the wait below
+ * stays a wait on one known URL.
  *
  * And the guarantee has to be about this element: preloading the URL only promises
  * that the resource was fetched once, while the `<img>` the swap creates does its
@@ -157,7 +176,10 @@ export async function playMissedBurn(el, card) {
   const face = stageFace(card, BURN_ANIMATION.FACE_READY_CAP_MS, { pinnedActive: true });
   // The history-sized portal is what the runtime re-renders into once the
   // collapse has finished, so it is warmed here rather than fetched at that swap.
-  warmAssets([MISSED_ART[prizeTypeOf(card, PRIZE)], BACKGROUNDS.missed]);
+  // `.poster` because BACKGROUNDS entries are descriptors now, not bare URLs —
+  // passing the object would have `warmAssets` fetch "[object Object]", and it
+  // swallows its own errors, so the only symptom would be a slower final swap.
+  warmAssets([MISSED_ART[prizeTypeOf(card, PRIZE)], BACKGROUNDS.missed.poster.fallback]);
 
   el.classList.add('lb-card--burning');
   const [staged] = await Promise.all([face, wait(BURN_ANIMATION.DRAIN_MS)]);
