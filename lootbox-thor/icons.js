@@ -1,15 +1,20 @@
 // Maps card states and prize types to raster assets under lootbox-thor/assets/images/.
 //
-// Thor's artwork model is flatter than Vegas's: the portal, the podium and the
-// glow behind the object all arrive as one background frame per state, so a card
-// is just background + object + text.
+// Thor's artwork model is flatter than Vegas's: the card's neon rim, the portal,
+// the podium and the glow behind the object are all baked into one background
+// frame per state, so a card is just background + object + text. Because the rim
+// comes with the frame, theme.css switches the core's CSS border off — see the
+// note on .lb-card there before adding any border back.
 //
-// Two of those backgrounds are now animated loops rather than single frames (see
-// BACKGROUNDS below), and those two carry no rim: theirs is drawn in CSS, because
-// a video frame has no alpha to round its corners with. The other three are still
-// the original rasters with the rim baked in. The only thing the widget has always
-// drawn itself is the halo OUTSIDE the card, a box-shadow in theme.css (exporting
-// a Figma frame clips it away).
+// Two of those backgrounds are animated loops rather than single frames (see
+// BACKGROUNDS below): available, and locked on the one spotlighted "next" day.
+// Those two carry no rim baked into the art — theirs is drawn in CSS instead,
+// because a video frame has no alpha to round its corners with. Source footage
+// also exists for `missed` and `previous` (see animation-source/), but both were
+// reverted to their original static rasters and are deliberately NOT wired to it
+// — see the note on `still()` below before re-animating either. The only thing
+// the widget has always drawn itself is the halo OUTSIDE the card, a box-shadow
+// in theme.css (exporting a Figma frame clips it away).
 
 import { BG_ANIM } from './backgrounds-anim.generated.js';
 

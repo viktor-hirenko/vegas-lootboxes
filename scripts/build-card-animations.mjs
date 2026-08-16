@@ -32,6 +32,18 @@
 // the sample count in the `stsz` box, which is what assertAvifSequence reads.
 // Verified against Chrome's own WebCodecs ImageDecoder, which reports
 // animated:true / frameCount:151 for these files.
+//
+// ADDING OR REPLACING A CLIP
+// Every animated state is one entry in CLIPS below: a state name (the
+// BACKGROUNDS key in lootbox-thor/icons.js), a source filename, and the CSS card
+// box the footage was composed for. Swapping the mp4 for an EXISTING state needs
+// no code change at all: the hash (and therefore every URL) changes on its own,
+// and the only shape check that survives is that the new footage's aspect ratio
+// still matches its card box (assertRatioMatches) — not its literal pixel
+// dimensions, so a differently-sized re-export of the same footage is accepted
+// automatically. Adding a WHOLLY NEW animated state does need a new CLIPS entry
+// here, plus wiring it into BACKGROUNDS in lootbox-thor/icons.js — that part
+// cannot be automatic, because a new state is new markup by definition.
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -54,23 +66,30 @@ const FRAMES_DIR = path.join(SOURCE_DIR, 'frames')
  * lootbox-thor/icons.js, NOT the source filename — `loked.mp4` carries a typo
  * that must not reach a public URL.
  *
- * `box` is the CSS card box the clip was composed for: 208x320 for today's card
- * and 208x288 for a history/locked one. `expect` is asserted against ffprobe so
- * a replacement video of the wrong shape fails loudly instead of being squashed
- * by `object-fit: fill` at runtime.
+ * `box` is the CSS card box the clip was composed for: 208x320 for today's live
+ * card, 208x288 for a history/locked one. Its ratio is asserted against every
+ * source video (assertRatioMatches, below) so a replacement of the wrong shape
+ * fails loudly instead of being squashed by `object-fit: fill` at runtime —
+ * deliberately a ratio check, not an exact-pixel one, so a differently-sized
+ * re-export of the same footage needs no change here.
+ *
+ * Only `available` and `locked` animate. Source videos exist for `missed` and
+ * `previous` too (`mised.mp4`, `was_win.mp4` in animation-source/), but those two
+ * card states were reverted to their original static rasters — see BACKGROUNDS in
+ * icons.js — so they are deliberately NOT listed here. Do not add them back
+ * without the accompanying icons.js/theme.css wiring this once had; see git
+ * history around "revert missed/previous animation" for what that entailed.
  */
 const CLIPS = Object.freeze([
   Object.freeze({
     state: 'available',
     source: 'active.mp4',
     box: Object.freeze({ width: 208, height: 320 }),
-    expect: Object.freeze({ width: 776, height: 1194 }),
   }),
   Object.freeze({
     state: 'locked',
     source: 'loked.mp4',
     box: Object.freeze({ width: 208, height: 288 }),
-    expect: Object.freeze({ width: 818, height: 1132 }),
   }),
 ])
 
@@ -113,7 +132,12 @@ const WARN_FILE_BYTES = 3 * 1024 * 1024
 /** Bumped when the output layout changes in a way that must invalidate hashes. */
 const SCHEMA_VERSION = 1
 
-const OUTPUT_NAME_RE = /^(available|locked)(-poster)?-(\d+)w\.([0-9a-f]{8})\.(avif|webp)$/
+/** Only files matching this are ever pruned as stale (see pruneStale) — anything
+ * else is reported and left alone. Derived from CLIPS so a new state is never a
+ * second place this needs updating. */
+const OUTPUT_NAME_RE = new RegExp(
+  `^(${CLIPS.map((clip) => clip.state).join('|')})(-poster)?-(\\d+)w\\.([0-9a-f]{8})\\.(avif|webp)$`,
+)
 
 const USAGE = `Builds Thor's animated card backgrounds from lootbox-thor/animation-source/.
 
@@ -124,8 +148,8 @@ Usage: node scripts/build-card-animations.mjs [flags]
                        (matches the q82 of the existing static rasters).
   --fps=N              Output frame rate. Default ${DEFAULTS.fps}.
   --speed=N            avifenc speed 0-10, lower is smaller/slower. Default ${DEFAULTS.speed}.
-  --only=STATE         Encode one clip (available|locked). The other's files must
-                       already exist with the current hash.
+  --only=STATE         Encode one clip (${CLIPS.map((clip) => clip.state).join('|')}).
+                       The others' files must already exist with the current hash.
   --force              Re-encode even when the hashed outputs are all present.
   --fail-on-budget     Exit 1 instead of warning when a 1x AVIF exceeds 800KB.
   --emit-frames        Also dump the 15fps PNG sequence per density, for manual
@@ -248,6 +272,35 @@ function probeSource(file) {
     height: Number(stream.height),
     frames: Number(stream.nb_frames),
     duration: Number(parsed.format?.duration),
+  }
+}
+
+/** How far a source's aspect ratio may drift from its target card box before the
+ * build refuses to touch it. 1% comfortably covers the ~0.06% drift every clip so
+ * far actually measures (they are all composed almost exactly to their box),
+ * while still catching a genuinely wrong file — wrong orientation, wrong crop,
+ * the wrong clip renamed into an existing slot. */
+const RATIO_TOLERANCE = 0.01
+
+/**
+ * Validates a source's aspect ratio against its card box — deliberately not its
+ * literal pixel dimensions, so replacing a clip with a different-resolution
+ * re-export of the same footage needs no change to CLIPS. `object-fit: fill`
+ * (see the note on .lb-card__bg in lootbox-thor/theme.css) does not crop a
+ * mismatch, it squashes it, which is why this is a hard failure rather than a
+ * warning.
+ */
+function assertRatioMatches(clip, probed) {
+  const sourceRatio = probed.width / probed.height
+  const boxRatio = clip.box.width / clip.box.height
+  const drift = Math.abs(sourceRatio - boxRatio) / boxRatio
+  if (drift > RATIO_TOLERANCE) {
+    throw new Error(
+      `${clip.source} is ${probed.width}x${probed.height} (ratio ${sourceRatio.toFixed(4)}), which does not ` +
+        `match the ${clip.box.width}x${clip.box.height} card box for state "${clip.state}" ` +
+        `(ratio ${boxRatio.toFixed(4)}) within ${(RATIO_TOLERANCE * 100).toFixed(0)}%. Re-export the footage ` +
+        `composed to this card's ratio, or update CLIPS[].box if the target box itself changed.`,
+    )
   }
 }
 
@@ -773,13 +826,7 @@ function main() {
     if (!fs.existsSync(sourcePath)) throw new Error(`Missing source video: ${path.relative(repoRoot, sourcePath)}`)
 
     const probed = probeSource(sourcePath)
-    if (probed.width !== clip.expect.width || probed.height !== clip.expect.height) {
-      throw new Error(
-        `${clip.source} is ${probed.width}x${probed.height}, expected ${clip.expect.width}x${clip.expect.height}. ` +
-          `If the video was re-exported, update CLIPS[].expect and re-check that its ratio still matches the ` +
-          `${clip.box.width}x${clip.box.height} card box (see the object-fit: fill note in lootbox-thor/theme.css).`,
-      )
-    }
+    assertRatioMatches(clip, probed)
     return planClip(clip, probed, hashClip(sourcePath, fingerprint), options)
   })
 
