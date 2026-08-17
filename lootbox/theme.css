@@ -430,8 +430,8 @@
 
 /* Skeleton ----------------------------------------------------------------- */
 
-/* logo-vegas.webp is slightly wider than its 128 box and bleeds a touch past
-   it — these percentages reproduce the mockup crop. */
+/* logo.webp is slightly wider than its 128 box and bleeds a touch past it —
+   these percentages reproduce the mockup crop. */
 .lb-card__skeleton-logo img {
   width: 100.46%;
   height: 102.5%;

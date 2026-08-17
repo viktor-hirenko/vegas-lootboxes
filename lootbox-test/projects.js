@@ -146,7 +146,7 @@ export const PROJECTS = Object.freeze({
 
   thor: Object.freeze({
     label: 'Thor Lootboxes',
-    entry: '../lootbox-thor/index.html',
+    entry: '../lootbox-2/index.html',
     header: Object.freeze({
       heading: 'Prize boxes',
       subtitle: 'Visit every day to open a prize box and see what luck brings',

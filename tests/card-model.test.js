@@ -9,14 +9,14 @@ import { fileURLToPath } from 'node:url';
 
 import { isActive, isClickable, hasCta, prizeTypeOf, statusTextFor } from '../core/card-model.js';
 import { PRIZE as VEGAS_PRIZE } from '../lootbox/vocabulary.js';
-import { PRIZE as THOR_PRIZE } from '../lootbox-thor/vocabulary.js';
-import { statusTextFor as thorStatusTextFor } from '../lootbox-thor/render.js';
+import { PRIZE as THOR_PRIZE } from '../lootbox-2/vocabulary.js';
+import { statusTextFor as thorStatusTextFor } from '../lootbox-2/render.js';
 import { PRIZE_ART, MISSED_ART as VEGAS_MISSED_ART } from '../lootbox/icons.js';
 import {
   OBJECTS_LG,
   OBJECTS_SM,
   MISSED_ART as THOR_MISSED_ART,
-} from '../lootbox-thor/icons.js';
+} from '../lootbox-2/icons.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -73,7 +73,7 @@ test('a value a brand has no art for lands on its nearest object', () => {
 const ART_SETS = [
   { brand: 'lootbox', prize: VEGAS_PRIZE, maps: { PRIZE_ART, MISSED_ART: VEGAS_MISSED_ART } },
   {
-    brand: 'lootbox-thor',
+    brand: 'lootbox-2',
     prize: THOR_PRIZE,
     maps: { OBJECTS_LG, OBJECTS_SM, MISSED_ART: THOR_MISSED_ART },
   },

@@ -55,6 +55,6 @@ server.listen(port, () => {
     console.log('  (serving dist/ — production build preview)');
   }
   console.log(`  Vegas:     http://localhost:${port}/lootbox/index.html`);
-  console.log(`  Thor:      http://localhost:${port}/lootbox-thor/index.html`);
+  console.log(`  Thor:      http://localhost:${port}/lootbox-2/index.html`);
   console.log(`  Test page: http://localhost:${port}/lootbox-test/index.html\n`);
 });

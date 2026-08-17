@@ -21,10 +21,28 @@ const distDir = path.join(root, 'dist');
  */
 const BRANDS = [
   { id: 'vegas', dir: 'lootbox', label: 'Vegas Lootboxes' },
-  { id: 'thor', dir: 'lootbox-thor', label: 'Thor Lootboxes' },
+  { id: 'thor', dir: 'lootbox-2', label: 'Thor Lootboxes' },
 ];
 
 const STYLE_BLOCK = /<!-- lb:styles -->[\s\S]*?<!-- \/lb:styles -->/;
+
+/**
+ * The CSS below is only concatenated, never minified, so every comment in a theme
+ * would ship verbatim — and those comments name the brand. Brand codenames must not
+ * reach dist/ (AGENTS.md rule 8), so they are dropped here instead of being censored
+ * in the sources, where they are the only record of why the geometry is what it is.
+ * Safe as a regex because no stylesheet here puts `/*` inside a string or url().
+ *
+ * @param {string} source
+ * @returns {string}
+ */
+function stripCssComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 fs.rmSync(distDir, { recursive: true, force: true });
 
@@ -50,7 +68,10 @@ for (const brand of BRANDS) {
     path.join(coreDir, 'base.css'),
     path.join(srcDir, 'theme.css'),
   ]
-    .map((file) => `/* ${path.relative(root, file)} */\n${fs.readFileSync(file, 'utf8')}`)
+    .map(
+      (file) =>
+        `/* ${path.relative(root, file)} */\n${stripCssComments(fs.readFileSync(file, 'utf8'))}`,
+    )
     .join('\n');
   fs.writeFileSync(path.join(outDir, 'widget.css'), css);
 

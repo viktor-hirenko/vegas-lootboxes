@@ -8,11 +8,11 @@ import { renderInner, cardClasses, onCardMounted } from './render.js';
 import { startOpenCharge, playOpenReveal } from './open.js';
 
 export const brand = Object.freeze({
-  id: 'vegas',
+  id: 'b1',
   prize: PRIZE,
 
   skeleton: Object.freeze({
-    mark: './assets/images/logo-vegas.webp',
+    mark: './assets/images/logo.webp',
     markWidth: 147,
     markHeight: 128,
   }),

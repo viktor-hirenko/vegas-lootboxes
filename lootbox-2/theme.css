@@ -43,12 +43,12 @@
      animated loop. Those loops are video frames with no alpha, so their corners
      cannot be rounded in the raster and their rim cannot be baked to the edge —
      both move to CSS. 2px on the 208 design grid, per Figma 215:35927. */
-  --lb-thor-rim-w: calc(var(--lb-card-width) / 208 * 2);
+  --lb-b2-rim-w: calc(var(--lb-card-width) / 208 * 2);
   /* Figma 215:35927 (active card) and 215:35929 (locked day). The locked rim is a
      saturated blue-violet, not a near-white like the live one — do not "harmonise"
      them. */
-  --lb-thor-rim-live: #ffe1ff;
-  --lb-thor-rim-locked: #4f5fef;
+  --lb-b2-rim-live: #ffe1ff;
+  --lb-b2-rim-locked: #4f5fef;
 }
 
 /* Thor's rim: baked on three states, CSS on two ----------------------------
@@ -154,7 +154,7 @@
 
    Two alternatives that do not work here, for the record: an inset box-shadow on
    the card paints BELOW its positioned descendants, so .lb-card__bg would cover
-   it, and `lb-thor-burn-drain` animates box-shadow on .lb-card and would wipe it
+   it, and `lb-b2-burn-drain` animates box-shadow on .lb-card and would wipe it
    for the whole burn. `outline` with a negative offset only follows border-radius
    in Safari 16.4+/Chrome 94+, i.e. a square rim on a rounded card in older Safari.
 
@@ -166,7 +166,7 @@
   position: absolute;
   inset: 0;
   z-index: 4;
-  border: var(--lb-thor-rim-w) solid var(--lb-rim, transparent);
+  border: var(--lb-b2-rim-w) solid var(--lb-rim, transparent);
   border-radius: inherit;
   pointer-events: none;
 }
@@ -184,11 +184,11 @@
 .lb-card--available,
 .lb-card--prize.lb-card--active,
 .lb-card--prediction.lb-card--active {
-  --lb-rim: var(--lb-thor-rim-live);
+  --lb-rim: var(--lb-b2-rim-live);
 }
 
 .lb-card--locked {
-  --lb-rim: var(--lb-thor-rim-locked);
+  --lb-rim: var(--lb-b2-rim-locked);
 }
 
 /* Animated portal ----------------------------------------------------------
@@ -392,11 +392,11 @@
    arrives. perspective is inline in the transform because the card's parent (the
    carousel track) must not become a 3D context for every other card. */
 .lb-card--charging {
-  animation: lb-thor-wobble 1100ms ease-in-out infinite;
+  animation: lb-b2-wobble 1100ms ease-in-out infinite;
   transform-origin: center;
 }
 
-@keyframes lb-thor-wobble {
+@keyframes lb-b2-wobble {
   0%,
   100% {
     transform: perspective(800px) rotateY(0deg);
@@ -409,11 +409,11 @@
 /* Phase 2a — the old face turns away. Ends exactly edge-on, where the content is
    swapped, so neither face is ever seen mirrored. */
 .lb-card--edge-out {
-  animation: lb-thor-edge-out 200ms ease-in forwards;
+  animation: lb-b2-edge-out 200ms ease-in forwards;
   transform-origin: center;
 }
 
-@keyframes lb-thor-edge-out {
+@keyframes lb-b2-edge-out {
   from {
     transform: perspective(800px) rotateY(0deg);
   }
@@ -424,11 +424,11 @@
 
 /* Phase 2b — the new face swings in from the other side. */
 .lb-card--edge-in {
-  animation: lb-thor-edge-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: lb-b2-edge-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   transform-origin: center;
 }
 
-@keyframes lb-thor-edge-in {
+@keyframes lb-b2-edge-in {
   from {
     transform: perspective(800px) rotateY(90deg);
   }
@@ -442,11 +442,11 @@
    .lb-card__object (not the wrap) so it never clobbers the wrap's
    --lb-obj-shift translateY. */
 .lb-card--edge-in .lb-card__object {
-  animation: lb-thor-object-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: lb-b2-object-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   animation-delay: 60ms;
 }
 
-@keyframes lb-thor-object-in {
+@keyframes lb-b2-object-in {
   from {
     transform: scale(0.55);
     opacity: 0;
@@ -463,11 +463,11 @@
 
 /* The button is the last thing to arrive, once the card faces front again. */
 .lb-card--edge-in .lb-card__cta {
-  animation: lb-thor-cta-in 260ms ease-out both;
+  animation: lb-b2-cta-in 260ms ease-out both;
   animation-delay: 200ms;
 }
 
-@keyframes lb-thor-cta-in {
+@keyframes lb-b2-cta-in {
   from {
     opacity: 0;
     transform: translateY(calc(var(--lb-card-width) / 208 * 8));
@@ -482,11 +482,11 @@
    beat, then a quick shake), pairing with the countdown ticking above it. Only
    this one card animates — see findSpotlightLockedIndex in core/runtime.js. */
 .lb-card--next .lb-card__object {
-  animation: lb-thor-lock-nudge 2600ms ease-in-out infinite;
+  animation: lb-b2-lock-nudge 2600ms ease-in-out infinite;
   transform-origin: center 45%;
 }
 
-@keyframes lb-thor-lock-nudge {
+@keyframes lb-b2-lock-nudge {
   0%,
   70%,
   100% {
@@ -530,21 +530,21 @@
 }
 
 .lb-card--burning {
-  animation: lb-thor-burn-drain 260ms ease-out forwards;
+  animation: lb-b2-burn-drain 260ms ease-out forwards;
 }
 
 .lb-card--burning .lb-card__content,
 .lb-card--burning .lb-card__badges {
-  animation: lb-thor-face-out 260ms ease-in forwards;
+  animation: lb-b2-face-out 260ms ease-in forwards;
 }
 
 .lb-card--burnt-in {
-  animation: lb-thor-burn-settle 240ms ease-out both;
+  animation: lb-b2-burn-settle 240ms ease-out both;
 }
 
 .lb-card--burnt-in .lb-card__content,
 .lb-card--burnt-in .lb-card__badges {
-  animation: lb-thor-face-in 240ms ease-out both;
+  animation: lb-b2-face-in 240ms ease-out both;
 }
 
 /* The drain takes out the two things the widget draws itself — the outer halo and
@@ -552,7 +552,7 @@
    missed card has. The rim is not animated here and must not be: it lives in the
    background raster, and that raster is swapped at the end of the drain, where
    the filter is at its darkest and the change does not read as a cut. */
-@keyframes lb-thor-burn-drain {
+@keyframes lb-b2-burn-drain {
   from {
     box-shadow: 0 0 var(--lb-glow-blur) 0 var(--lb-active-glow);
     filter: saturate(1) brightness(1);
@@ -566,7 +566,7 @@
 /* Picks the drain's end value back up so the swap is not a step in brightness.
    Releasing the filter does not relight the card: by now the background raster
    underneath is the burnt portal, which is dim art to begin with. */
-@keyframes lb-thor-burn-settle {
+@keyframes lb-b2-burn-settle {
   from {
     filter: saturate(0.3) brightness(0.55);
   }
@@ -575,7 +575,7 @@
   }
 }
 
-@keyframes lb-thor-face-out {
+@keyframes lb-b2-face-out {
   from {
     opacity: 1;
   }
@@ -584,7 +584,7 @@
   }
 }
 
-@keyframes lb-thor-face-in {
+@keyframes lb-b2-face-in {
   from {
     opacity: 0;
   }

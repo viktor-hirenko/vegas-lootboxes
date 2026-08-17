@@ -6,10 +6,10 @@ import { renderInner, cardClasses, onCardMounted } from './render.js';
 import { startOpenCharge, playOpenReveal, playMissedBurn } from './open.js';
 
 export const brand = Object.freeze({
-  id: 'thor',
+  id: 'b2',
   prize: PRIZE,
   skeleton: Object.freeze({
-    mark: './assets/images/logo-thor.webp',
+    mark: './assets/images/logo.webp',
     markWidth: 128,
     markHeight: 128,
   }),

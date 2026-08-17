@@ -1,4 +1,4 @@
-// Maps card states and prize types to raster assets under lootbox-thor/assets/images/.
+// Maps card states and prize types to raster assets under lootbox-2/assets/images/.
 //
 // Thor's artwork model is flatter than Vegas's: the card's neon rim, the portal,
 // the podium and the glow behind the object are all baked into one background

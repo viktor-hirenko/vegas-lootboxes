@@ -2,9 +2,9 @@
 // Regenerate with: npm run build:animations
 //
 // Animated portal loops for the Thor card background, built from
-// lootbox-thor/animation-source/ by scripts/build-card-animations.mjs.
+// lootbox-2/animation-source/ by scripts/build-card-animations.mjs.
 //
-// Paths are relative to lootbox-thor/index.html, exactly like icons.js: these are
+// Paths are relative to lootbox-2/index.html, exactly like icons.js: these are
 // HTML attribute values, resolved against the document, not module specifiers.
 //
 // The hash in each filename is derived from the source video bytes plus the full

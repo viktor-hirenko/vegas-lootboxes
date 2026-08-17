@@ -1,5 +1,5 @@
 // Builds the animated card backgrounds for Thor from the source videos in
-// lootbox-thor/animation-source/, as animated AVIF + animated WebP loops with
+// lootbox-2/animation-source/, as animated AVIF + animated WebP loops with
 // static first-frame posters, at several densities, under content-hashed names.
 //
 // Usage: node scripts/build-card-animations.mjs [flags]
@@ -35,14 +35,14 @@
 //
 // ADDING OR REPLACING A CLIP
 // Every animated state is one entry in CLIPS below: a state name (the
-// BACKGROUNDS key in lootbox-thor/icons.js), a source filename, and the CSS card
+// BACKGROUNDS key in lootbox-2/icons.js), a source filename, and the CSS card
 // box the footage was composed for. Swapping the mp4 for an EXISTING state needs
 // no code change at all: the hash (and therefore every URL) changes on its own,
 // and the only shape check that survives is that the new footage's aspect ratio
 // still matches its card box (assertRatioMatches) — not its literal pixel
 // dimensions, so a differently-sized re-export of the same footage is accepted
 // automatically. Adding a WHOLLY NEW animated state does need a new CLIPS entry
-// here, plus wiring it into BACKGROUNDS in lootbox-thor/icons.js — that part
+// here, plus wiring it into BACKGROUNDS in lootbox-2/icons.js — that part
 // cannot be automatic, because a new state is new markup by definition.
 
 import { execFileSync } from 'node:child_process'
@@ -54,16 +54,16 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 
-const SOURCE_DIR = path.join(repoRoot, 'lootbox-thor/animation-source')
-const OUTPUT_DIR = path.join(repoRoot, 'lootbox-thor/assets/images/backgrounds-anim')
-const MANIFEST_PATH = path.join(repoRoot, 'lootbox-thor/backgrounds-anim.generated.js')
+const SOURCE_DIR = path.join(repoRoot, 'lootbox-2/animation-source')
+const OUTPUT_DIR = path.join(repoRoot, 'lootbox-2/assets/images/backgrounds-anim')
+const MANIFEST_PATH = path.join(repoRoot, 'lootbox-2/backgrounds-anim.generated.js')
 /** Where --emit-frames drops PNG sequences. Outside assets/ so neither
  * scripts/build.js nor scripts/convert-webp.mjs ever walks into it. */
 const FRAMES_DIR = path.join(SOURCE_DIR, 'frames')
 
 /**
  * One entry per source clip. `state` is the BACKGROUNDS key in
- * lootbox-thor/icons.js, NOT the source filename — `loked.mp4` carries a typo
+ * lootbox-2/icons.js, NOT the source filename — `loked.mp4` carries a typo
  * that must not reach a public URL.
  *
  * `box` is the CSS card box the clip was composed for: 208x320 for today's live
@@ -139,7 +139,7 @@ const OUTPUT_NAME_RE = new RegExp(
   `^(${CLIPS.map((clip) => clip.state).join('|')})(-poster)?-(\\d+)w\\.([0-9a-f]{8})\\.(avif|webp)$`,
 )
 
-const USAGE = `Builds Thor's animated card backgrounds from lootbox-thor/animation-source/.
+const USAGE = `Builds Thor's animated card backgrounds from lootbox-2/animation-source/.
 
 Usage: node scripts/build-card-animations.mjs [flags]
 
@@ -286,7 +286,7 @@ const RATIO_TOLERANCE = 0.01
  * Validates a source's aspect ratio against its card box — deliberately not its
  * literal pixel dimensions, so replacing a clip with a different-resolution
  * re-export of the same footage needs no change to CLIPS. `object-fit: fill`
- * (see the note on .lb-card__bg in lootbox-thor/theme.css) does not crop a
+ * (see the note on .lb-card__bg in lootbox-2/theme.css) does not crop a
  * mismatch, it squashes it, which is why this is a hard failure rather than a
  * warning.
  */
@@ -602,9 +602,9 @@ function writeManifest(results, options, versions) {
 // Regenerate with: npm run build:animations
 //
 // Animated portal loops for the Thor card background, built from
-// lootbox-thor/animation-source/ by scripts/build-card-animations.mjs.
+// lootbox-2/animation-source/ by scripts/build-card-animations.mjs.
 //
-// Paths are relative to lootbox-thor/index.html, exactly like icons.js: these are
+// Paths are relative to lootbox-2/index.html, exactly like icons.js: these are
 // HTML attribute values, resolved against the document, not module specifiers.
 //
 // The hash in each filename is derived from the source video bytes plus the full

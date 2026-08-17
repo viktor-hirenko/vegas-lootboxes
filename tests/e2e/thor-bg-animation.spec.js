@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { gotoSandbox, widgetFrame, waitForCards, loadScenario } from './helpers.js';
 
 // The animated portal background is gated by an IntersectionObserver in
-// lootbox-thor/bg-anim.js rather than by `loading="lazy"` alone, because every
+// lootbox-2/bg-anim.js rather than by `loading="lazy"` alone, because every
 // locked day animates and a scenario ribbon is padded to 30 of them. These specs
 // pin the two properties that gate is there for — only the cards near the viewport
 // ever load a loop, and reduced motion loads none at all — plus the one silent

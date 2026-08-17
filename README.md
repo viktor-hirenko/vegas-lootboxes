@@ -7,7 +7,7 @@ integrators should treat [`INTEGRATION.md`](./INTEGRATION.md) as the stable API.
 | Brand | Folder | Status |
 |-------|--------|--------|
 | Vegas | `lootbox/` | Production. Final motion-designer animations integrated. |
-| Thor  | `lootbox-thor/` | Draft for review. Full contract and final art; open/burn animations still draft (see INTEGRATION.md §11). Integrate now — protocol will not change. |
+| Thor  | `lootbox-2/` | Draft for review. Full contract and final art; open/burn animations still draft (see INTEGRATION.md §11). Integrate now — protocol will not change. |
 
 **Stack: plain HTML, CSS and JavaScript. No runtime frameworks.** The widgets run
 directly as static files — no build step is required. The `esbuild`/Node scripts in
@@ -23,6 +23,12 @@ an interactive playground to exercise that contract by hand against either brand
 
 Folder names are identical everywhere — in the repo, in `dist/`, and on the CDN.
 There is no renaming step at any point.
+
+Because of that, **a folder name is public**: it lands verbatim in the widget URL a
+player can read. So brand folders are numbered rather than named — `lootbox-2/` is
+the Thor widget. Brand names live in `brand.config.js`, in the sandbox `label` and
+in this documentation; they are kept out of anything that ships to the CDN, which
+also covers asset filenames, `<title>` and CSS class names.
 
 ```text
 vegas-lootboxes/
@@ -40,7 +46,7 @@ vegas-lootboxes/
 │  ├─ render.js icons.js vocabulary.js open.js open-animation.js
 │  ├─ theme.css          # brand tokens, geometry, animations
 │  └─ assets/
-├─ lootbox-thor/         # Thor widget — same shape, different art
+├─ lootbox-2/            # Thor widget — same shape, different art
 │  ├─ bg-anim.js         # gates when a card's animated portal may load
 │  ├─ backgrounds-anim.generated.js   # GENERATED — see "Card animations" below
 │  └─ animation-source/  # source videos: a build input, never shipped
@@ -59,9 +65,10 @@ Everything brand-specific is one folder plus one sandbox entry. `core/` never
 reaches into a brand folder — it only reads the object exported by
 `brand.config.js`.
 
-1. Copy an existing brand folder and replace `theme.css`, `assets/`, `icons.js`,
-   `vocabulary.js`, `render.js` and the animation pair (`open.js`,
-   `open-animation.js`).
+1. Copy an existing brand folder to `lootbox-<N>/` — the next free number, never the
+   brand's name — and replace `theme.css`, `assets/`, `icons.js`, `vocabulary.js`,
+   `render.js` and the animation pair (`open.js`, `open-animation.js`). Use `lb-b<N>-`
+   as the CSS prefix and `b<N>` as `brand.id`.
 2. Register the folder in `BRANDS` in `scripts/build.js`.
 3. Add a preset to `lootbox-test/projects.js` so the sandbox can switch to it.
 4. In §11 of `INTEGRATION.md`, add the brand to the `prizeType` table (which
@@ -80,7 +87,7 @@ npm run dev
 
 Then open:
 - Vegas widget alone: `http://localhost:4173/lootbox/index.html`
-- Thor widget alone: `http://localhost:4173/lootbox-thor/index.html`
+- Thor widget alone: `http://localhost:4173/lootbox-2/index.html`
 - Integration sandbox: `http://localhost:4173/lootbox-test/index.html` — the
   project switcher in the sidebar reloads with `?project=vegas` / `?project=thor`
 
@@ -88,13 +95,13 @@ Then open:
 
 > Full write-up — the conversion pipeline, the size ladder, every format decision
 > and why, and how the runtime decides which card gets to animate — lives in
-> [`lootbox-thor/ANIMATIONS.md`](lootbox-thor/ANIMATIONS.md). This section is the
+> [`lootbox-2/ANIMATIONS.md`](lootbox-2/ANIMATIONS.md). This section is the
 > short version.
 
 Thor's today card, and the one locked day the player is actually waiting for, use
 an animated portal background instead of a single frame; every other locked day
 shows the same portal as a still. The loops are built from the source videos in
-`lootbox-thor/animation-source/` — this is the only step in the repo that needs
+`lootbox-2/animation-source/` — this is the only step in the repo that needs
 **system** binaries rather than npm packages:
 
 ```bash
@@ -102,10 +109,10 @@ brew install ffmpeg libavif webp
 npm run build:animations
 ```
 
-It writes 36 files into `lootbox-thor/assets/images/backgrounds-anim/` (animated
+It writes 36 files into `lootbox-2/assets/images/backgrounds-anim/` (animated
 AVIF at 1x–3x, animated WebP at 1x–2x, plus static first-frame posters in both
 formats at every density) and regenerates
-`lootbox-thor/backgrounds-anim.generated.js`, which the widget imports. Outputs are
+`lootbox-2/backgrounds-anim.generated.js`, which the widget imports. Outputs are
 committed, so a fresh clone needs none of this unless the source videos change.
 
 Notable behaviour, all of it intentional:
@@ -127,7 +134,7 @@ Notable behaviour, all of it intentional:
 
 At runtime a card shows its static poster immediately and the loop is layered on top
 only once the card scrolls near the viewport, then released again when it leaves
-(`lootbox-thor/bg-anim.js`). Under `prefers-reduced-motion: reduce` the loop is never
+(`lootbox-2/bg-anim.js`). Under `prefers-reduced-motion: reduce` the loop is never
 requested at all.
 
 ## Testing
@@ -157,7 +164,7 @@ dist/
 │  ├─ widget.css
 │  ├─ widget.min.js
 │  └─ assets/
-├─ lootbox-thor/        # minified Thor widget, same shape
+├─ lootbox-2/           # minified Thor widget, same shape
 └─ lootbox-test/        # sandbox, ready for the CDN
 ```
 
@@ -177,7 +184,7 @@ into the CDN prefix, keeping the same names:
 
 ```text
 common/widgets-smartico/lootbox/       ← dist/lootbox/
-common/widgets-smartico/lootbox-thor/  ← dist/lootbox-thor/
+common/widgets-smartico/lootbox-2/     ← dist/lootbox-2/
 common/widgets-smartico/lootbox-test/  ← dist/lootbox-test/
 ```
 
@@ -186,7 +193,7 @@ Manual steps:
 2. Upload each `dist/<folder>/` into `common/widgets-smartico/<folder>/` on the bucket.
 3. Share URLs with the integrating team:
    - Vegas widget (iframe src): `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox/index.html`
-   - Thor widget (iframe src): `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox-thor/index.html`
+   - Thor widget (iframe src): `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox-2/index.html`
    - Integration sandbox: `https://cdn-wl.s3.amazonaws.com/common/widgets-smartico/lootbox-test/index.html`
    - Origin for `event.origin` checks: `https://cdn-wl.s3.amazonaws.com`
 
@@ -195,7 +202,7 @@ Manual steps:
 > renamed folders). Integrators should keep the host + base path in a single
 > constant so a move is a one-line change.
 
-The sandbox loads a widget via a relative path (`../lootbox-thor/index.html`), so
+The sandbox loads a widget via a relative path (`../lootbox-2/index.html`), so
 all folders must stay **siblings** under the same CDN prefix.
 
 Deploy is manual upload (same as other widgets on this CDN). If releases become
@@ -203,7 +210,7 @@ recurring, a follow-up script such as:
 
 ```bash
 aws s3 sync ./dist/lootbox      s3://<bucket>/common/widgets-smartico/lootbox --delete
-aws s3 sync ./dist/lootbox-thor s3://<bucket>/common/widgets-smartico/lootbox-thor --delete
+aws s3 sync ./dist/lootbox-2    s3://<bucket>/common/widgets-smartico/lootbox-2 --delete
 aws s3 sync ./dist/lootbox-test s3://<bucket>/common/widgets-smartico/lootbox-test --delete
 ```
 

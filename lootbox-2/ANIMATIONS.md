@@ -25,7 +25,7 @@ Everything else — `missed`, `missed-active`, `previous` — is unchanged: stat
 WebP rasters with their neon rim baked into the artwork, exactly as before this
 feature existed.
 
-The source videos live in `lootbox-thor/animation-source/` (git-tracked, ~3.3 MB).
+The source videos live in `lootbox-2/animation-source/` (git-tracked, ~3.3 MB).
 They are a **build input**, not a shipped asset — `scripts/build.js` never touches
 that folder, so no video reaches `dist/` or the CDN.
 
@@ -212,7 +212,7 @@ half-written reaches the manifest.
 ### 2.6 Stale-file cleanup and the size/budget report
 
 After encoding, the script deletes anything in
-`lootbox-thor/assets/images/backgrounds-anim/` that is not part of the current
+`lootbox-2/assets/images/backgrounds-anim/` that is not part of the current
 plan — but **only** files matching the exact output-name pattern
 (`^(available|locked)(-poster)?-\d+w\.[0-9a-f]{8}\.(avif|webp)$`). Anything that
 doesn't match is reported and left alone; a bug in name generation must never be
@@ -267,7 +267,7 @@ ship a manifest it cannot back up on disk.
 Both are pre-composed almost exactly to their target card ratio (0.06 % off),
 which is why no cropping filter is needed anywhere in the pipeline — `scale`
 alone is safe, and `object-fit: fill` at runtime never has to hide a mismatch (see
-`lootbox-thor/theme.css`'s note on `.lb-card__bg`).
+`lootbox-2/theme.css`'s note on `.lb-card__bg`).
 
 The script asserts the *raw* source dimensions (`776×1194` / `818×1132`) against
 what it probes at the top of every run (`probeSource` + the `expect` field on each
@@ -372,8 +372,8 @@ drawn in CSS instead: `border-radius: inherit` all the way down through the
 `<picture>` wrapper and the animation layer (see the `.lb-card__bg-frame` note in
 `theme.css` — this exact chain was the source of a corner-artifact bug once, see
 §8), and the rim is a `.lb-card::after` overlay coloured per state via a
-`--lb-rim` custom property (`--lb-thor-rim-live: #ffe1ff` for the active card,
-`--lb-thor-rim-locked: #4f5fef` for locked — both taken from the Figma reference,
+`--lb-rim` custom property (`--lb-b2-rim-live: #ffe1ff` for the active card,
+`--lb-b2-rim-locked: #4f5fef` for locked — both taken from the Figma reference,
 nodes `215:35927` and `215:35929`).
 
 ## 6. The manual-conversion escape hatch: `--emit-frames`
@@ -381,7 +381,7 @@ nodes `215:35927` and `215:35929`).
 If the automated encoders ever produce a file that fails validation, or a
 completely different tool needs to take over, `--emit-frames` dumps the exact
 15 fps PNG sequence the pipeline itself encodes from, per density, into
-`lootbox-thor/animation-source/frames/<state>-<width>w/`. That directory is
+`lootbox-2/animation-source/frames/<state>-<width>w/`. That directory is
 `.gitignore`d and lives outside `assets/`, so it is never picked up by
 `scripts/build.js` or by `scripts/convert-webp.mjs`'s recursive PNG→WebP sweep.
 
@@ -391,7 +391,7 @@ this pipeline assumes.
 
 ## 7. The generated manifest
 
-`npm run build:animations` writes `lootbox-thor/backgrounds-anim.generated.js` —
+`npm run build:animations` writes `lootbox-2/backgrounds-anim.generated.js` —
 marked **GENERATED, do not edit by hand** in its own header. It exports one frozen
 object per animated state:
 
@@ -417,7 +417,7 @@ entirely. Paths inside it (`./assets/images/backgrounds-anim/...`) are
 document-relative HTML attribute values, exactly like the `BASE` constant in
 `icons.js`, because that is what they are used as.
 
-`lootbox-thor/icons.js` is the only consumer. It wraps each `BG_ANIM` entry into
+`lootbox-2/icons.js` is the only consumer. It wraps each `BG_ANIM` entry into
 the descriptor shape `render.js` actually needs — `{ poster: {avif, webp,
 fallback}, anim: {avif, webp, fallback} | null }` — via three small helpers:
 
@@ -530,12 +530,12 @@ poster underneath is unaffected, so the card is never blank.
 ## 9. Regenerating after a source video changes
 
 ```bash
-# replace the file(s) in lootbox-thor/animation-source/, then:
+# replace the file(s) in lootbox-2/animation-source/, then:
 npm run build:animations
 ```
 
 That's the whole procedure. The new hash follows automatically from the new file
-bytes, every URL for the affected clip changes, `lootbox-thor/
+bytes, every URL for the affected clip changes, `lootbox-2/
 backgrounds-anim.generated.js` is rewritten, and the old hashed files under
 `assets/images/backgrounds-anim/` are pruned. Nothing else in the repo needs a
 manual update unless the video's aspect ratio no longer matches its card box (the

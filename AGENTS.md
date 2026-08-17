@@ -16,7 +16,7 @@ core/           brand-agnostic ядро: протокол, парсер пара
                 стор, карусель, resize, skeleton, таймер, FLIP-переходы, рантайм,
                 базовый CSS и общие шрифты
 lootbox/        бренд Vegas Lootboxes  — адаптер: config, render, open, icons, theme
-lootbox-thor/   бренд Thor Fortune Drop — адаптер: config, render, open, icons, theme,
+lootbox-2/      бренд Thor Fortune Drop — адаптер: config, render, open, icons, theme,
                 bg-anim (гейт загрузки анимированных фонов), animation-source/ (исходные
                 видео — вход сборки, на CDN не уезжают)
 lootbox-test/   одна песочница на все бренды, с переключателем проектов
@@ -31,6 +31,15 @@ tests/          юнит-тесты ядра (node --test) и e2e (playwright)
    `dist/lootbox/` → `widgets-smartico/lootbox/`. Из-за этого сиблинг-путь
    `../lootbox/index.html` из песочницы работает и локально, и в сборке, и на
    CDN — без детекта окружения. Не переименовывать папки брендов.
+
+   Следствие: **имя папки публичное** — оно дословно попадает в URL виджета,
+   который видит игрок. Поэтому папки называются нейтрально и по номеру
+   (`lootbox`, `lootbox-2`, `lootbox-3`…), а не по бренду: `lootbox-2/` — это
+   виджет Thor Fortune Drop. Кодовое имя проекта живёт в `label` песочницы
+   (`lootbox-test/projects.js`), в `BRANDS` в `scripts/build.js` и в этой
+   документации — но не в том, что уезжает на CDN. Тот же запрет распространяется
+   на имена ассетов, `<title>` и имена CSS-классов: всё это видно в браузере
+   (см. правило 8).
 
 2. **Контракт интеграции живёт в одном экземпляре в `core/`.** `protocol.js`,
    `params.js`, `message-bus.js`, `content-store.js` — единственный источник
@@ -49,20 +58,35 @@ tests/          юнит-тесты ядра (node --test) и e2e (playwright)
 
 6. **Входы сборки не лежат в `assets/`.** `scripts/build.js` копирует всю папку
    `assets/` в `dist/` через `fs.cpSync`, поэтому всё, что там окажется, уедет на
-   CDN. Исходные видео лежат в `lootbox-thor/animation-source/` именно поэтому.
+   CDN. Исходные видео лежат в `lootbox-2/animation-source/` именно поэтому.
 
-7. **`lootbox-thor/backgrounds-anim.generated.js` не править руками.** Он
+7. **`lootbox-2/backgrounds-anim.generated.js` не править руками.** Он
    генерируется `npm run build:animations` вместе с растрами; хэши в именах файлов
    — это ключ кэша CDN. Правка вручную рассинхронизирует манифест с диском.
    Как устроен весь конвейер (ffmpeg → avifenc/img2webp → манифест → гейт в
-   рантайме) — `lootbox-thor/ANIMATIONS.md`.
+   рантайме) — `lootbox-2/ANIMATIONS.md`.
+
+8. **В папке виджета нет кодовых имён брендов.** Всё, что грузит игрок, он может
+   прочитать, поэтому поверхностей пять: имя папки, имена ассетов
+   (`assets/images/logo.webp`, не `logo-<бренд>.webp`), `<title>`, имена
+   CSS-классов и `@keyframes` (`lb-b<N>-*`), `brand.id` (`b<N>`). Проверка перед
+   деплоем — `rg -i '<кодовое имя>' dist/lootbox dist/lootbox-2`, должно быть
+   пусто (кроме ложных совпадений в base64 внутри SVG).
+
+   В исходниках имена брендов писать можно и нужно: `scripts/build.js` срезает
+   CSS-комментарии при склейке, а документация на CDN не уезжает. Песочница
+   `lootbox-test/` — тоже исключение: это внутренний инструмент, и бренды в
+   переключателе названы по имени осознанно (`label` в `projects.js`).
 
 ## Добавить новый бренд
 
-1. Скопировать `lootbox-thor/` в `lootbox-<id>/`, заменить config/render/open/
-   icons/theme и ассеты.
-2. Добавить `<id>` в `BRANDS` в `scripts/build.js`.
-3. Добавить запись в `lootbox-test/projects.js`.
+1. Скопировать `lootbox-2/` в `lootbox-<N>/` со следующим свободным номером
+   (не в `lootbox-<имя бренда>/` — см. правило 1), заменить
+   config/render/open/icons/theme и ассеты. Префикс CSS-классов бренда —
+   `lb-b<N>-`, `brand.id` — `b<N>`.
+2. Добавить `<N>` в `BRANDS` в `scripts/build.js`.
+3. Добавить запись в `lootbox-test/projects.js` — вот здесь имя бренда как раз
+   и живёт, в `label`.
 
 Ядро при этом не трогается — это и есть тест на то, что архитектура работает.
 

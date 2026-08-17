@@ -21,7 +21,7 @@
 export const OPEN_ANIMATION = Object.freeze({
   EDGE_ON_MS: 200, // 0 -> 90deg: the old face turns away
   SWING_IN_MS: 260, // -90 -> 0deg: the new face turns towards the viewer
-  OBJECT_IN_MS: 420, // object scale-in, starts with the swing (see lb-thor-object-in)
+  OBJECT_IN_MS: 420, // object scale-in, starts with the swing (see lb-b2-object-in)
   CTA_IN_MS: 260, // CTA fade + rise, delayed until the card faces front again
   COMPLETE_AT_MS: 760, // emit animationComplete once every layer has settled
 });

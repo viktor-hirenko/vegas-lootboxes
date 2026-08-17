@@ -8,7 +8,7 @@ desktop.ini
 .tmp/
 # PNG-секвенции от `npm run build:animations -- --emit-frames`: промежуточный
 # материал для ручной конвертации, а не ассет.
-lootbox-thor/animation-source/frames/
+lootbox-2/animation-source/frames/
 test-results/
 playwright-report/
 blob-report/

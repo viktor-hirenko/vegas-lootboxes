@@ -16,7 +16,7 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 /** Roots scanned recursively for PNG → WebP. */
 const ROOTS = [
   join(repoRoot, 'lootbox/assets/images'),
-  join(repoRoot, 'lootbox-thor/assets/images'),
+  join(repoRoot, 'lootbox-2/assets/images'),
   join(repoRoot, 'lootbox-test/assets/backgrounds'),
 ]
 

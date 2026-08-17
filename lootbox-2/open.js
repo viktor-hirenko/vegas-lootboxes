@@ -95,7 +95,7 @@ function swapToResult(el, card, extraClasses, staged) {
  * This only ever stages a `missed` face, which is one of the three legacy rasters
  * that still carry their neon rim in the artwork (see BACKGROUNDS in icons.js) —
  * and that raster is the one layer a swap does not fade in, because
- * `lb-thor-face-in` covers `.lb-card__content`, not `.lb-card__bg`. So a background
+ * `lb-b2-face-in` covers `.lb-card__content`, not `.lb-card__bg`. So a background
  * that is still loading is not a late portal, it is a card with no rim on any side,
  * sitting on the flat `--lb-card-bg`, in full view. Everything inside the content
  * wrapper can arrive a frame late without being seen, which is what `warmAssets` is
