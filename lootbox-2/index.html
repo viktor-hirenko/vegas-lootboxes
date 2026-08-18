@@ -17,6 +17,14 @@
     <link rel="stylesheet" href="../core/base.css" />
     <link rel="stylesheet" href="./theme.css" />
     <!-- /lb:styles -->
+
+    <!--
+      The skeleton's brand mark is referenced from brand.config.js, so the preload
+      scanner cannot see it and the request only starts after widget.js has been
+      fetched and executed — a whole extra round trip on mobile, during which the
+      placeholder cards sit there empty. This hint starts the fetch with the CSS.
+    -->
+    <link rel="preload" as="image" href="./assets/images/logo.webp" fetchpriority="high" />
   </head>
   <body>
     <div id="lb-widget" class="lb-widget" data-lb-root>

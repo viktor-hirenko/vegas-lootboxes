@@ -50,7 +50,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 
@@ -119,7 +119,13 @@ const CICP = '1/13/6'
 const DEFAULTS = Object.freeze({
   quality: 65,
   posterQuality: 82,
-  fps: 15,
+  // 12, not the source's 24: see §3.2 in ANIMATIONS.md. The ceiling here is not
+  // how the loop reads but what an iPhone pays to play it — no Apple silicon
+  // before A17 Pro decodes AV1 in hardware, so every frame of both on-screen
+  // loops is CPU work, and the device runs warm. Frame count is the one lever
+  // that trades directly against that, and on a slow ambient glow it costs
+  // nothing visible.
+  fps: 12,
   speed: 6,
   encoder: 'avifenc',
 })
@@ -510,7 +516,7 @@ function avifSampleCount(buffer) {
   return buffer.readUInt32BE(at + 12)
 }
 
-function assertAvifSequence(file, expectedFrames) {
+export function assertAvifSequence(file, expectedFrames) {
   const buffer = fs.readFileSync(file)
   const { major, compatible } = ftypBrands(buffer)
 
@@ -530,14 +536,14 @@ function assertAvifSequence(file, expectedFrames) {
   return frames
 }
 
-function assertAvifStill(file) {
+export function assertAvifStill(file) {
   const buffer = fs.readFileSync(file)
   const { major } = ftypBrands(buffer)
   if (major !== 'avif') throw new Error(`${path.basename(file)}: poster ftyp major brand is "${major}", expected "avif"`)
   if (readBox(buffer, 'moov') >= 0) throw new Error(`${path.basename(file)}: poster carries a moov box — it is a sequence, not a still`)
 }
 
-function assertWebpAnimated(file, expectedFrames) {
+export function assertWebpAnimated(file, expectedFrames) {
   const buffer = fs.readFileSync(file)
   if (buffer.subarray(0, 4).toString('ascii') !== 'RIFF' || buffer.subarray(8, 12).toString('ascii') !== 'WEBP') {
     throw new Error(`${path.basename(file)}: not a RIFF/WEBP file`)
@@ -892,9 +898,14 @@ function describeExisting(plan) {
   }))
 }
 
-try {
-  main()
-} catch (err) {
-  console.error(err.message || err)
-  process.exit(1)
+// Only build when this file IS the command. The container assertions above are
+// the same ones scripts/verify-animations.mjs runs against the committed output,
+// and importing them must not kick off a re-encode as a side effect.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    main()
+  } catch (err) {
+    console.error(err.message || err)
+    process.exit(1)
+  }
 }

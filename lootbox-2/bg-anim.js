@@ -2,20 +2,27 @@
 // go again. Brand-local: the core knows nothing about it beyond calling
 // `onCardMounted`.
 //
+// WHAT ANIMATES
+// Exactly two cards in a ribbon: today's, and the single locked day the core
+// spotlights as next up. Every other locked day gets the same artwork as a still
+// poster (`lockedStatic` in icons.js), so a 30-day month runs two loops, not ~26.
+// That gating lives in `backgroundFor` in render.js — this module only ever sees
+// cards that already carry a layer.
+//
 // WHY NOT JUST loading="lazy"
 // Native lazy loading does defer correctly inside the carousel: the intersection
 // algorithm clips a target by every ancestor's clip rect before intersecting with
 // the root, so a card scrolled out of the horizontally-scrolling track has an
-// empty rect and is genuinely not fetched. Three things it cannot do, all of
-// which matter here because EVERY locked day animates and a 30-day ribbon has
-// ~26 of them:
+// empty rect and is genuinely not fetched. Three things it cannot do:
 //
-//   1. It never gives the frames back. A loaded image is never unloaded, so after
-//      one sweep of the row all ~26 loops stay decoded for the rest of the
-//      session. Traffic is not the problem — every card of a state shares one
-//      content-hashed URL, so that is a single request and 25 memory-cache hits
-//      (Chromium even shares one decoder and frame buffer between identical
-//      <img>s). Decoded frame buffers and per-frame raster work are the problem.
+//   1. It never gives the frames back. A loaded image is never unloaded, so both
+//      loops stay decoded for the rest of the session once they have been seen.
+//      Traffic is not the problem — every card of a state shares one
+//      content-hashed URL, so repeats are memory-cache hits (Chromium even shares
+//      one decoder and frame buffer between identical <img>s). Decoded frame
+//      buffers and per-frame raster work are the problem, and they are why this
+//      module also detaches: a 151-frame loop the player has scrolled away from
+//      should stop costing raster work.
 //   2. It does not survive a subtree swap. `swapToResult` in open.js replaces a
 //      card's children wholesale, so the layer it attached to is simply gone.
 //   3. It does not know about `prefers-reduced-motion` changing mid-session.

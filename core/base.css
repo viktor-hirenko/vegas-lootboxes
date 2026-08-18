@@ -264,6 +264,27 @@ body {
   overflow: visible;
 }
 
+/* Height fallback for engines without aspect-ratio — Safari < 15, i.e. iOS 14.
+   Nothing in the card is in flow: background, glow, object, text and badges are
+   all absolutely positioned, so the ratio is the only thing giving the box a
+   height. Where it is unsupported the card collapses to zero and the widget
+   renders as a blank strip with only the arrows visible.
+
+   --lb-card-width resolves to a length, so the height is just the ratio applied
+   to it, which matches aspect-ratio exactly: both resolve against the border
+   box under the global border-box sizing. The container query that makes the
+   width fluid needs Safari 16, so on every engine that reaches this block the
+   width is the flat 208px default and these come out at exactly 288 and 320. */
+@supports not (aspect-ratio: 1 / 1) {
+  .lb-card {
+    height: calc(var(--lb-card-width) / 208 * 288);
+  }
+
+  .lb-card--active {
+    height: calc(var(--lb-card-width) / 208 * 320);
+  }
+}
+
 /* Press feedback only on real <button> cards (available / today's prize with CTA).
    Past prize/prediction are <div class="lb-card--disabled"> and must not animate. */
 button.lb-card {
@@ -290,9 +311,16 @@ button.lb-card:active {
   user-select: none;
 }
 
+/* Longhand rather than `inset: 0`, here and on the glow's light below: the
+   shorthand needs Safari 14.1, and without it this box would shrink-to-fit its
+   text instead of filling the card, dropping the bottom-pinned title. The two
+   are otherwise identical, so this costs nothing on current engines. */
 .lb-card__content {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -339,7 +367,10 @@ button.lb-card:active {
 
 .lb-card__glow .lb-card__light {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   transform: none;

@@ -79,9 +79,9 @@ piped as raw YUV4MPEG straight into `avifenc` on stdin — no intermediate file.
 ```
 ffmpeg -hide_banner -nostdin -loglevel error -y -i <source> \
   -map 0:v:0 -an -sn -dn -map_metadata -1 \
-  -vf "fps=15,scale=<W>:<H>:flags=lanczos,format=yuv420p" \
+  -vf "fps=12,scale=<W>:<H>:flags=lanczos,format=yuv420p" \
   -fps_mode cfr -f yuv4mpegpipe - \
-| avifenc --stdin --fps 15 -q 65 -s 6 -j all -k 0 \
+| avifenc --stdin --fps 12 -q 65 -s 6 -j all -k 0 \
   --repetition-count infinite --cicp 1/13/6 <out>.avif
 ```
 
@@ -91,12 +91,12 @@ Read left to right:
 |---|---|
 | `-map 0:v:0 -an -sn -dn` | Keeps only the video stream. Both source videos carry an AAC audio track that must go, plus any data/subtitle stream that would otherwise confuse a single-stream muxer. |
 | `-map_metadata -1` | Drops creation-time and encoder tags — a public asset shouldn't carry authoring metadata, and it removes one source of run-to-run byte variance. |
-| `fps=15,...` (fps first) | Frame-rate conversion happens **before** the expensive Lanczos scale, so scaling runs on 151 decimated frames instead of the source's 241. |
+| `fps=12,...` (fps first) | Frame-rate conversion happens **before** the expensive Lanczos scale, so scaling runs on 121 decimated frames instead of the source's 241. |
 | `scale=W:H:flags=lanczos` | Every output rung is a downscale from the source (see §3), and Lanczos preserves the thin neon rim far better than the default bicubic filter — the rim runs to the very edge of the frame, so edge sharpness is the thing worth spending cycles on. |
 | `format=yuv420p` | Forces 8-bit 4:2:0, opaque — see §5 for why this is load-bearing, not incidental. |
-| `-fps_mode cfr` | Constant frame duration: every sample is exactly 1/15 s, so the sequence timescale `avifenc` writes downstream is honest. |
+| `-fps_mode cfr` | Constant frame duration: every sample is exactly 1/12 s, so the sequence timescale `avifenc` writes downstream is honest. |
 | `-f yuv4mpegpipe -` | Streams raw frames to stdout instead of writing an intermediate file. |
-| `avifenc --stdin --fps 15` | Reads that stream; `--fps` sets the sequence timescale (each frame is 1 tick, so this is literally the frame rate). |
+| `avifenc --stdin --fps 12` | Reads that stream; `--fps` sets the sequence timescale (each frame is 1 tick, so this is literally the frame rate). |
 | `-q 65` | Quality 0–100 on `avifenc`'s own scale — used directly, no remapping needed (unlike some AVIF tools that only expose a quantizer). |
 | `-s 6` | Encoder speed 0–10 (0 slowest/smallest, 10 fastest/largest). 6 is the balance this pipeline ships with; tune with `--speed`. |
 | `-j all` | Use every core. |
@@ -109,7 +109,7 @@ path: `img2webp` takes a directory of PNG frames, not a pipe, so the script
 extracts frames to a temp directory first (`extractFrames`), then runs:
 
 ```bash
-img2webp -loop 0 -lossy -q 65 -m 6 -d 67 <frames>/*.png -o <out>.webp
+img2webp -loop 0 -lossy -q 65 -m 6 -d 83 <frames>/*.png -o <out>.webp
 ```
 
 Two flags here are not optional defaults:
@@ -118,10 +118,10 @@ Two flags here are not optional defaults:
   which turned a 290 KB loop into a 5.2 MB one during development. This is the
   single easiest way to blow the size budget by accident if this command is ever
   hand-edited.
-- **`-d 67`** is the per-frame duration in whole milliseconds
+- **`-d 83`** is the per-frame duration in whole milliseconds
   (`round(1000/fps)`). WebP cannot store fractional millisecond durations, so at
-  15 fps the loop plays back at 151 × 67 ms ≈ 10.117 s against the AVIF's exact
-  10.067 s — a 0.5 % drift, invisible on an ambient glow.
+  12 fps the loop plays back at 121 × 83 ms ≈ 10.043 s against the AVIF's exact
+  10.083 s — a 0.4 % drift, invisible on an ambient glow.
 
 Static posters (one frame each, both formats, every density) are simpler: extract
 frame 0 with `select=eq(n\,0)`, then `avifenc` (with `-still-picture` semantics —
@@ -152,6 +152,49 @@ ladder because it is cheap there.
 Every rung also gets a static poster, in both formats — five densities × two
 formats × two purposes (poster / animation) plus the WebP cap, which works out to
 18 files per clip, 36 total.
+
+#### At the real embed width: fully covered
+
+The widget is embedded into an 872px-wide container on the casino page. The card
+is fluid on desktop (`--lb-card-width: calc(100cqw * 13 / 57)`), so that works out
+to a 198.9px card — and every rung the browser needs is there, with room to spare:
+
+| Container | Card | DPR 1 | DPR 2 | DPR 3 |
+|---|---|---|---|---|
+| **872px (production)** | 199px | needs 199w → **208w** | needs 398w → **416w** | needs 597w → **624w** |
+
+No upscaling at any pixel ratio, including 3x phones. This is pinned by a test of
+its own in `tests/e2e/thor-asset-size.spec.js` ("the production embed width is
+covered at every pixel ratio") — if the page layout ever changes, that is the
+number to update, and the failure message will point straight at it.
+
+#### Where the ladder would run out, if the embed grew
+
+The margin above is comfortable but not unlimited, so it is worth knowing where
+the edge is. The ladder tops out at 624px while the card keeps growing with the
+container, so a much wider embed on a retina screen would eventually outrun it.
+The same spec measures this by loading the widget as a full-width top-level page
+and comparing the rung the browser picked against `card width × DPR`:
+
+| Embed width | Card | DPR 1 | DPR 2 |
+|---|---|---|---|
+| 1280px | 292px | 312w ✅ | 624w ✅ |
+| 1440px | 328px | 416w ✅ | needs 657w → 624w, **5% short** |
+| 1680px | 383px | 416w ✅ | needs 767w → 624w, **19% short** |
+| 1920px | 438px | 520w ✅ | needs 876w → 624w, **29% short** |
+| 2560px | 584px | 624w ✅ | needs 1168w → 624w, **47% short** |
+
+So: **every non-retina desktop is fully covered up to 2560px**, and retina is
+covered up to a ~1280px-wide embed — comfortably past the 872px the widget
+actually gets. Past that the browser would upscale a 624px loop. On this material
+— a soft ambient glow with no hard edges or text — a 5–19% upscale is not
+visible; 29% and beyond would be a judgement call.
+
+None of this needs acting on at the current embed width. If the container is ever
+widened past ~1280px, the fix is bounded: the sources are 776px and 782px wide
+(§3.1), so 776w is the highest rung that could be added without inventing detail.
+That would fully cover 1440@2x and 1680@2x and reduce 1920@2x to a 13% stretch,
+at roughly +400 KB of AVIF per clip.
 
 ### 2.4 Filenames, hashing, and why re-running is a no-op
 
@@ -209,6 +252,20 @@ picture in a browser (see §4 for exactly what can go wrong and why).
 Any failure here throws immediately and the whole run exits non-zero — nothing
 half-written reaches the manifest.
 
+The same three assertions can be run against the **committed** files at any time,
+without encoders installed and without re-encoding anything:
+
+```bash
+npm run verify:animations
+```
+
+This matters because the outputs are committed rather than built on deploy, so
+what reaches the CDN is whatever is in git — and between the encode and the
+deploy a file can be truncated by a bad merge or rewritten by a well-meaning
+image optimiser. `build:animations` cannot catch that: it needs `avifenc` and
+`img2webp`, and it skips clips whose files are already present. `verify:animations`
+reads bytes only, so it runs on any machine and in CI.
+
 ### 2.6 Stale-file cleanup and the size/budget report
 
 After encoding, the script deletes anything in
@@ -222,8 +279,8 @@ directory gets emptied by accident.
 The final report prints a per-file size table, per-clip totals, and a budget
 check specifically for the **1x animated AVIF** — the file a mobile client
 actually downloads first — against an 800 KB ceiling. As measured with the
-current source videos: `available-208w` is ~81 KB (10 % of budget),
-`locked-208w` is ~72 KB (9 %). `--fail-on-budget` turns a budget overrun into a
+current source videos: `available-208w` is ~72 KB (9 % of budget),
+`locked-208w` is ~62 KB (8 %). `--fail-on-budget` turns a budget overrun into a
 non-zero exit instead of a warning, for CI use.
 
 ### 2.7 Command-line flags
@@ -237,7 +294,7 @@ non-zero exit instead of a warning, for CI use.
                      must already exist with the current hash — see below.
 --force              Re-encode even when the hashed outputs are all present.
 --fail-on-budget     Exit 1 instead of warning when a 1x AVIF exceeds 800KB.
---emit-frames        Also dump the 15fps PNG sequence per density, for manual
+--emit-frames        Also dump the 12fps PNG sequence per density, for manual
                      conversion elsewhere. See §6.
 --dry-run            Print the plan, hashes and every ffmpeg/avifenc command
                      line; encode nothing.
@@ -275,12 +332,41 @@ what it probes at the top of every run (`probeSource` + the `expect` field on ea
 the build fails with an explicit message rather than silently reprocessing a file
 whose ratio might no longer match its card box.
 
-### 3.2 Frame rate: 24 → 15
+One thing worth flagging about these sources, because it bounds everything
+downstream: **they are 10 s long, where the brief to the motion designer asked
+for a 1–2 s loop.** Nothing is wrong with them — they loop cleanly and they
+look right — but the length is the single biggest input into playback cost
+(§3.2), and it is the one the pipeline cannot fix. Re-cutting the glow to 3–4 s
+would take roughly two thirds off both the bytes and the sustained decode work,
+and no code here would need to change: drop the new files into
+`animation-source/` and re-run the build. If the loops ever need to get
+materially cheaper, that is the lever, and it belongs to design rather than to
+this script.
 
-The source is 24 fps; the pipeline resamples to 15. At 10.04 s that is 151 output
-frames instead of 241 — roughly 37 % fewer frames to encode and store, on
-material (a slow ambient portal glow) where the extra temporal resolution buys
-nothing visible.
+### 3.2 Frame rate: 24 → 12
+
+The source is 24 fps; the pipeline resamples to 12. At 10.04 s that is 121 output
+frames instead of 241 — half the frames to encode, store and decode, on material
+(a slow ambient portal glow) where the extra temporal resolution buys nothing
+visible.
+
+The first cut was to 15 fps and was argued purely on bytes. The reason it went
+further is playback cost on iOS, found on real hardware: the widget left open
+made an iPhone run warm and the loops stuttered slightly. No Apple silicon
+before A17 Pro decodes AV1 in hardware, so every frame of both on-screen loops
+is CPU work — at 15 fps that is 30 decodes a second, sustained for as long as
+the row is visible.
+
+Frame count is the one lever that trades directly against that, and it is
+linear: 15 → 12 is a fifth off both the decode load and the byte count. Measured
+across the 36 files, total on-disk size went 4630 KB → 4124 KB, and the 1x
+animated AVIF a mobile client actually downloads went 83 KB → 72 KB.
+
+Going lower is possible but not free: below ~10 fps the ring pulse starts to
+read as stepped rather than smooth. 12 is the last rung that still looks
+continuous on this material. If the loops ever need to get cheaper again, the
+lever to reach for is duration, not frame rate — see the note in §3.1 about the
+source being 10 s where the original brief asked for 1–2 s.
 
 ### 3.3 Colour tagging: measured, not assumed
 
@@ -321,13 +407,13 @@ displays as a still image.
 ffmpeg's own AVIF demuxer only ever reads the *primary item* of an AVIF file —
 which for an animated sequence is frame 0, stored as a still-image fallback for
 software that doesn't understand animated AVIF at all. So `ffprobe` reports
-`nb_frames=1` for a perfectly healthy 151-frame animated file. This is not a bug
+`nb_frames=1` for a perfectly healthy 121-frame animated file. This is not a bug
 in the file; it is ffmpeg's AVIF *reader* being conservative. The pipeline's own
 validation (§2.5) reads the true frame count straight from the `stsz` box in the
 container instead of trusting `ffprobe`.
 
 This was cross-checked against Chrome's `ImageDecoder` (WebCodecs) API directly on
-a built file, which reported `animated: true, frameCount: 151` — confirming the
+a built file, which reported `animated: true, frameCount: 121` — confirming the
 container-level check and Chrome's own decoder agree, independent of `ffprobe`.
 
 ### 4.2 What actually makes an AVIF "animated" to a browser
@@ -380,7 +466,7 @@ nodes `215:35927` and `215:35929`).
 
 If the automated encoders ever produce a file that fails validation, or a
 completely different tool needs to take over, `--emit-frames` dumps the exact
-15 fps PNG sequence the pipeline itself encodes from, per density, into
+12 fps PNG sequence the pipeline itself encodes from, per density, into
 `lootbox-2/animation-source/frames/<state>-<width>w/`. That directory is
 `.gitignore`d and lives outside `assets/`, so it is never picked up by
 `scripts/build.js` or by `scripts/convert-webp.mjs`'s recursive PNG→WebP sweep.
@@ -400,9 +486,9 @@ export const BG_ANIM = Object.freeze({
   available: Object.freeze({
     hash: 'e61cc802',
     box: Object.freeze({ width: 208, height: 320 }),
-    fps: 15,
-    frames: 151,
-    durationMs: 10067,
+    fps: 12,
+    frames: 121,
+    durationMs: 10083,
     avif: Object.freeze([ /* { url, width } ascending */ ]),
     webp: Object.freeze([ /* … */ ]),
     poster: Object.freeze({ avif: [...], webp: [...] }),
@@ -527,7 +613,112 @@ intersects a `display: none` element, the `IntersectionObserver` in §8.3 never
 fires for it and the gate never promotes `data-srcset` into `srcset`. The static
 poster underneath is unaffected, so the card is never blank.
 
-## 9. Regenerating after a source video changes
+## 9. How this is verified
+
+### 9.1 What runs automatically
+
+```bash
+npm test                  # unit — manifest ↔ disk, ladder shape, sizes ↔ CSS
+npm run verify:animations # container structure of every committed raster
+npm run test:e2e          # browser — 5 engine/device profiles
+```
+
+`playwright.config.js` runs every spec against five profiles: Desktop Chrome,
+Desktop Firefox, Desktop Safari, Pixel 7 and iPhone 14. Firefox and WebKit are
+not decoration here. Animated AVIF shipped in Firefox 113 and Safari 16.4, and
+before those versions both render the still primary item instead — no error, no
+fallback to the WebP `<source>`, just a card that never moves. Chromium alone
+cannot see that class of failure.
+
+| Spec | What it pins down |
+|---|---|
+| `thor-bg-animation.spec.js` | layer exists, inherits the card radius, never blocks the skeleton gate, re-registers after a reveal, requests no bytes under reduced motion |
+| `thor-anim-states.spec.js` | across all six sandbox scenarios and after an open: only today's card and the spotlighted locked day carry a loop; nothing is left without a background |
+| `thor-asset-size.spec.js` | the rung the browser actually picked covers `card width × DPR`, per device profile and across a viewport × DPR sweep |
+| `thor-anim-plays.spec.js` | the portal is genuinely moving in each engine, the static locked days are genuinely not, and reduced motion is genuinely frozen |
+
+Two notes for anyone extending these:
+
+- **Do not put `reducedMotion` in the Playwright config `use` block.** In 1.62 it
+  is not applied from `use` at all — measured: the page still reports
+  `matches === false`. Only `page.emulateMedia()` and
+  `browser.newContext({ reducedMotion })` work. The option used to sit in the
+  config reading as "the whole suite runs reduced", while in fact no spec did.
+- **Do not measure motion with `canvas.drawImage`.** Every engine draws the
+  image's *default* frame, so a healthy 121-frame loop scores a difference of
+  exactly 0.000. `thor-anim-plays.spec.js` screenshots the `<img>` element
+  instead and compares pixels; a playing loop measures 5–9 on a 0–255 scale and a
+  still one measures 0.00.
+
+### 9.2 What still needs a human
+
+The automated matrix runs Playwright's bundled engines, which are close to but
+not identical to shipping browsers, and it cannot see GPU decode cost, battery
+drain or how the widget looks inside the real casino page. Worth checking by hand
+on a draft deploy:
+
+- [ ] **Real iOS Safari and real Android Chrome**, on device. Watch the two loops
+      for ~30s: smooth, no stutter, no visible tearing on the rim.
+- [ ] **Older Safari (< 16.4) or older Firefox (< 113)** if either is in the
+      supported set. Expected: a clean still frame, never a blank or broken card.
+- [ ] **Battery/thermal**: leave the widget open a few minutes on a real phone.
+      This one has already come back positive once — at 15 fps an iPhone ran
+      warm and the loops stuttered slightly, which is what drove the cut to 12
+      (§3.2). Re-check after any change to frame rate, duration or the number of
+      cards allowed to animate, and treat a warm device as a real finding rather
+      than a quirk of the test rig.
+- [ ] **The real embed width** in the casino page, measured, then checked against
+      the coverage table in §2.3 — that is the only input that decides whether the
+      624px ceiling matters.
+- [ ] **OS-level reduced motion** toggled on a real device: portal freezes, card
+      keeps its artwork, nothing goes blank.
+- [ ] **Slow network** (throttled 3G): the poster appears first and the loop fades
+      in later; the card is never empty while waiting.
+
+### 9.3 The support floor, and why it sits where it does
+
+**Supported: iOS 15 and up, and the current versions of Chrome, Firefox, Edge
+and desktop Safari.** Below that the widget is not guaranteed, and this section
+records what actually happens there so nobody has to re-derive it from a
+BrowserStack session.
+
+| Version | What a player sees |
+|---|---|
+| iOS 13 | Cards render, but no artwork at all and no gaps between them |
+| iOS 14 | Everything renders and the loop plays; gaps between cards are missing below 14.1 |
+| iOS 15 | Fully working. Cards stay 208px wide on tablet-width embeds; button padding is a few px off below 15.4 |
+| iOS 16.0–16.3 | Fully working, except the portal is a still frame instead of a loop |
+| iOS 16.4+ | Everything as designed |
+
+Three separate cutoffs produce that table, and they are worth keeping apart:
+
+- **`aspect-ratio` (Safari 15).** Load-bearing: nothing in a card is in flow, so
+  without it the box collapses to zero height and the widget is a blank strip.
+  `core/base.css` carries a `@supports not (aspect-ratio: ...)` fallback that
+  computes the same height from `--lb-card-width`, which is why iOS 13 and 14
+  render at all. Verified to land within 0.01px of the ratio at every rung.
+- **WebP (Safari 14).** Every raster in this repo is WebP or AVIF, so iOS 13
+  shows empty cards. Fixing that means shipping the entire asset library a
+  second time in a legacy format — deliberately not done.
+- **Animated AVIF (Safari 16.4, Firefox 113).** Older engines match the
+  `<source type="image/avif">` — they *do* support AVIF — and then render frame
+  0 without animating. There is no feature query that separates "decodes AVIF"
+  from "animates AVIF", so this cannot be routed around from the markup; the
+  degradation is a still card, which is acceptable.
+
+The floor is 15 rather than 14 because of what devices exist, not what versions
+do: every iPhone that can run iOS 14 can also run 15, so 14 only survives on
+handsets whose owner declined updates. iOS 15.8 is a genuine terminus, for the
+iPhone 6s, 7 and SE (1st gen) — that is the oldest hardware a real player can be
+holding, and it is fully supported.
+
+One consequence worth remembering when testing: **BrowserStack defaults an
+iPhone 11 to iOS 13.3**, the version it shipped with in 2019. That handset takes
+updates through iOS 18, so the default is a configuration almost nobody is
+running. Pick the OS version deliberately, or the session will report failures
+that no player can reach.
+
+## 10. Regenerating after a source video changes
 
 ```bash
 # replace the file(s) in lootbox-2/animation-source/, then:

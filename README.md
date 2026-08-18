@@ -137,13 +137,25 @@ only once the card scrolls near the viewport, then released again when it leaves
 (`lootbox-2/bg-anim.js`). Under `prefers-reduced-motion: reduce` the loop is never
 requested at all.
 
+Because the outputs are committed rather than built on deploy, the files that
+reach the CDN are whatever is in git. `npm run verify:animations` re-checks the
+container structure of all 36 of them — reading bytes only, so it needs no
+encoders and runs anywhere. A loop that lost its `avis` brand still decodes and
+still paints; it just never moves, which nothing else notices.
+
 ## Testing
 
-- **Unit:** `npm test` — contract logic (Node, no browser).
-- **E2E:** `npx playwright install chromium` (once), then `npm run test:e2e` — sandbox
-  + iframe flows for Vegas and Thor.
+- **Unit:** `npm test` — contract logic and the animation manifest (Node, no browser).
+- **Assets:** `npm run verify:animations` — every committed loop is a real sequence.
+- **E2E:** `npx playwright install` (once — all engines), then `npm run test:e2e`.
 - **All:** `npm run test:all` — unit then E2E.
 - **Manual:** `npm run dev` → `lootbox-test/?project=vegas` or `?project=thor`
+
+The E2E suite runs against five profiles: Desktop Chrome, Firefox, Safari, Pixel 7
+and iPhone 14. Chromium alone is not enough for Thor — animated AVIF landed in
+Firefox 113 and Safari 16.4, and older versions show a still frame with no error
+and no fallback. See `lootbox-2/ANIMATIONS.md` §9 for what the suite covers and
+the short list of things that still need a real device.
 
 ## Production build (optional)
 
