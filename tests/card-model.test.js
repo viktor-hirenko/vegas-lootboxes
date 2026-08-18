@@ -50,18 +50,26 @@ test('an unknown prize type falls back to the brand default', () => {
 });
 
 test('the shared contract values resolve on both brands', () => {
-  for (const prizeType of ['coin', 'bonus-money', 'free-spins']) {
+  for (const prizeType of ['cash', 'cashback', 'coin', 'free-spins']) {
     assert.equal(prizeTypeOf({ prizeType }, VEGAS_PRIZE), prizeType);
     assert.equal(prizeTypeOf({ prizeType }, THOR_PRIZE), prizeType);
   }
 });
 
-test('a value a brand has no art for lands on its nearest object', () => {
-  // Vegas draws no cashback, Thor draws no cash — each stands in with its own.
-  assert.equal(prizeTypeOf({ prizeType: 'cashback' }, VEGAS_PRIZE), 'cash');
-  assert.equal(prizeTypeOf({ prizeType: 'cash' }, THOR_PRIZE), 'cashback');
-  // `coins` is the plural Thor shipped before the vocabularies were aligned;
-  // both brands keep accepting it so a live integration does not break.
+test('the prize vocabulary is the same in every brand', () => {
+  // The whole point of the contract's §11: a brand draws its own art for the
+  // four values but never adds, drops or renames one. A brand-local value would
+  // put the backend back to branching per brand.
+  assert.deepEqual([...VEGAS_PRIZE.valid], [...THOR_PRIZE.valid]);
+  assert.equal(VEGAS_PRIZE.default, THOR_PRIZE.default);
+  assert.deepEqual({ ...VEGAS_PRIZE.aliases }, { ...THOR_PRIZE.aliases });
+});
+
+test('names the contract published earlier still resolve', () => {
+  // `bonus-money` was what banknotes were called, `coins` the plural Thor
+  // shipped — both stay accepted so a live integration does not break.
+  assert.equal(prizeTypeOf({ prizeType: 'bonus-money' }, VEGAS_PRIZE), 'cash');
+  assert.equal(prizeTypeOf({ prizeType: 'bonus-money' }, THOR_PRIZE), 'cash');
   assert.equal(prizeTypeOf({ prizeType: 'coins' }, VEGAS_PRIZE), 'coin');
   assert.equal(prizeTypeOf({ prizeType: 'coins' }, THOR_PRIZE), 'coin');
 });

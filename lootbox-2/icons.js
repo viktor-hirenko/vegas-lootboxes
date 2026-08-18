@@ -117,8 +117,8 @@ function posterOnly(entry) {
 
 /** 128px artwork for today's card: vivid, full-colour. */
 export const OBJECTS_LG = Object.freeze({
-  'bonus-money': `${BASE}/objects-lg/bonus-money.webp`,
-  cashback: `${BASE}/objects-lg/cashback.webp`,
+  cash: `${BASE}/objects-lg/cash.webp`, // banknotes with coins
+  cashback: `${BASE}/objects-lg/cashback.webp`, // banknotes with a return arrow
   coin: `${BASE}/objects-lg/coin.webp`,
   'free-spins': `${BASE}/objects-lg/free-spins.webp`,
   cookies: `${BASE}/objects-lg/cookies.webp`,
@@ -127,7 +127,7 @@ export const OBJECTS_LG = Object.freeze({
 
 /** 112px artwork for past days: the same objects, drawn smaller. */
 export const OBJECTS_SM = Object.freeze({
-  'bonus-money': `${BASE}/objects-sm/bonus-money.webp`,
+  cash: `${BASE}/objects-sm/cash.webp`,
   cashback: `${BASE}/objects-sm/cashback.webp`,
   coin: `${BASE}/objects-sm/coin.webp`,
   'free-spins': `${BASE}/objects-sm/free-spins.webp`,
@@ -138,7 +138,7 @@ export const OBJECTS_SM = Object.freeze({
 /** 112px desaturated artwork for a missed day. Separate art, not a CSS filter:
  * the designer greys the object out by hand so the neon rim survives. */
 export const MISSED_ART = Object.freeze({
-  'bonus-money': `${BASE}/missed/bonus-money.webp`,
+  cash: `${BASE}/missed/cash.webp`,
   cashback: `${BASE}/missed/cashback.webp`,
   coin: `${BASE}/missed/coin.webp`,
   'free-spins': `${BASE}/missed/free-spins.webp`,

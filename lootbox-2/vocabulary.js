@@ -6,19 +6,17 @@
 import { CARD_STATE } from '../core/protocol.js';
 
 /**
- * Prize art vocabulary. The names are the ones in the integration contract
- * (§11), shared with every other brand — one Smartico payload feeds all of them.
+ * Prize art vocabulary. The four values are the contract's (§11) and are the
+ * same in every brand — each brand draws its own art for them, none adds or
+ * drops a value, so one Smartico payload feeds all of them unchanged.
  *
- * `aliases` covers the values Thor has no artwork of its own for: `cash` is a
- * separate prize in the contract, but Thor only draws cashback, so a cash payload
- * lands on the nearest object instead of the default. `coins` is the plural this
- * brand shipped before the vocabularies were aligned — kept so an integration
- * already sending it keeps working.
+ * `aliases` is pure legacy: both names were published before the vocabularies
+ * were aligned, so an integration already sending them keeps working.
  */
 export const PRIZE = Object.freeze({
-  valid: Object.freeze(['bonus-money', 'cashback', 'coin', 'free-spins']),
+  valid: Object.freeze(['cash', 'cashback', 'coin', 'free-spins']),
   default: 'coin',
-  aliases: Object.freeze({ cash: 'cashback', coins: 'coin' }),
+  aliases: Object.freeze({ 'bonus-money': 'cash', coins: 'coin' }),
 });
 
 export const DEFAULT_TITLES = Object.freeze({

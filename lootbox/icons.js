@@ -29,16 +29,16 @@ export const OBJECTS = Object.freeze({
 
 /** Prize art keyed by prize type (colorful, "won" variant). */
 export const PRIZE_ART = Object.freeze({
-  'bonus-money': `${BASE}/prizes/bonus-money.webp`,
-  cash: `${BASE}/prizes/cash.webp`,
+  cash: `${BASE}/prizes/cash.webp`, // banknotes
+  cashback: `${BASE}/prizes/cashback.webp`, // piggy bank
   coin: `${BASE}/prizes/coin.webp`,
   'free-spins': `${BASE}/prizes/free-spins.webp`,
 });
 
 /** Missed-day art keyed by prize type (prize embedded in a disco ball). */
 export const MISSED_ART = Object.freeze({
-  'bonus-money': `${BASE}/missed/bonus-money.webp`,
   cash: `${BASE}/missed/cash.webp`,
+  cashback: `${BASE}/missed/cashback.webp`,
   coin: `${BASE}/missed/coin.webp`,
   'free-spins': `${BASE}/missed/free-spins.webp`,
 });

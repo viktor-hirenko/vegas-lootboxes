@@ -15,13 +15,16 @@ export const CHAIN_STATES = Object.freeze([
   CARD_STATE.MISSED,
 ])
 
-/** Prize art vocabulary. `aliases` covers the contract values Vegas has no
- * artwork of its own for — `cashback` lands on the cash object — so one Smartico
- * payload feeds every brand without the backend branching per brand. */
+/** Prize art vocabulary. The four values are the contract's (§11) and are the
+ * same in every brand — each brand draws its own art for them, none adds or
+ * drops a value, so one Smartico payload feeds all of them unchanged.
+ *
+ * `aliases` is pure legacy: both names were published before the vocabularies
+ * were aligned, so an integration already sending them keeps working. */
 export const PRIZE = Object.freeze({
-  valid: Object.freeze(['bonus-money', 'cash', 'coin', 'free-spins']),
+  valid: Object.freeze(['cash', 'cashback', 'coin', 'free-spins']),
   default: 'coin',
-  aliases: Object.freeze({ cashback: 'cash', coins: 'coin' }),
+  aliases: Object.freeze({ 'bonus-money': 'cash', coins: 'coin' }),
 })
 
 export const DEFAULT_TITLES = Object.freeze({

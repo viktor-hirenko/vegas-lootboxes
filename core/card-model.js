@@ -37,11 +37,11 @@ export function hasCta(card) {
 /**
  * Resolves `card.prizeType` against a brand's vocabulary.
  *
- * The contract has one prize vocabulary for every brand (INTEGRATION.md §11),
- * but a brand only draws part of it: Vegas has no cashback object, Thor has no
- * cash one. `aliases` is where a brand says which of its own objects stands in
- * for a value it cannot draw, so one Smartico payload feeds every brand and an
- * unknown value still lands on something closer than the default.
+ * The contract has one prize vocabulary for every brand (INTEGRATION.md §11) and
+ * every brand draws all of it, so this resolves to the same value everywhere.
+ * `aliases` maps names the contract published earlier onto their current ones,
+ * which keeps an older integration working; anything else falls back to the
+ * brand's default rather than rendering an empty slot.
  *
  * @param {{ prizeType?: string }} card
  * @param {{ valid: readonly string[], default: string, aliases?: Record<string, string> }} prize
