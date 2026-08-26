@@ -121,6 +121,8 @@ export const OBJECTS_LG = Object.freeze({
   cashback: `${BASE}/objects-lg/cashback.webp`, // banknotes with a return arrow
   coin: `${BASE}/objects-lg/coin.webp`,
   'free-spins': `${BASE}/objects-lg/free-spins.webp`,
+  'free-chips': `${BASE}/objects-lg/free-chips.webp`,
+  'bonus-money': `${BASE}/objects-lg/bonus-money.webp`,
   cookies: `${BASE}/objects-lg/cookies.webp`,
   question: `${BASE}/objects-lg/question.webp`,
 });
@@ -131,6 +133,8 @@ export const OBJECTS_SM = Object.freeze({
   cashback: `${BASE}/objects-sm/cashback.webp`,
   coin: `${BASE}/objects-sm/coin.webp`,
   'free-spins': `${BASE}/objects-sm/free-spins.webp`,
+  'free-chips': `${BASE}/objects-sm/free-chips.webp`,
+  'bonus-money': `${BASE}/objects-sm/bonus-money.webp`,
   cookies: `${BASE}/objects-sm/cookies.webp`,
   lock: `${BASE}/objects-sm/lock.webp`,
 });
@@ -142,5 +146,7 @@ export const MISSED_ART = Object.freeze({
   cashback: `${BASE}/missed/cashback.webp`,
   coin: `${BASE}/missed/coin.webp`,
   'free-spins': `${BASE}/missed/free-spins.webp`,
+  'free-chips': `${BASE}/missed/free-chips.webp`,
+  'bonus-money': `${BASE}/missed/bonus-money.webp`,
   cookies: `${BASE}/missed/cookies.webp`,
 });

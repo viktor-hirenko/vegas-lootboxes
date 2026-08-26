@@ -116,7 +116,7 @@ export const PROJECTS = Object.freeze({
       desktop: './assets/backgrounds/bg-desktop.png',
       mobile: './assets/backgrounds/bg-mobile.png',
     }),
-    prizeTypes: Object.freeze(['coin', 'cash', 'cashback', 'free-spins']),
+    prizeTypes: Object.freeze(['coin', 'cash', 'cashback', 'free-spins', 'free-chips', 'bonus-money']),
     mockDefaults: Object.freeze({
       prize: Object.freeze({
         title: '20 CAD bonus',
@@ -156,7 +156,7 @@ export const PROJECTS = Object.freeze({
       desktop: './assets/backgrounds/thor-bg-desktop.webp',
       mobile: './assets/backgrounds/thor-bg-mobile.webp',
     }),
-    prizeTypes: Object.freeze(['coin', 'cash', 'cashback', 'free-spins']),
+    prizeTypes: Object.freeze(['coin', 'cash', 'cashback', 'free-spins', 'free-chips', 'bonus-money']),
     mockDefaults: Object.freeze({
       // No `tag`: Thor keeps an opened result to a bare date pill, so a status
       // badge sent here would be dropped by the widget anyway.

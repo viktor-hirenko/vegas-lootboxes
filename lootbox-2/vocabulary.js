@@ -6,17 +6,15 @@
 import { CARD_STATE } from '../core/protocol.js';
 
 /**
- * Prize art vocabulary. The four values are the contract's (§11) and are the
+ * Prize art vocabulary. The six values are the contract's (§11) and are the
  * same in every brand — each brand draws its own art for them, none adds or
- * drops a value, so one Smartico payload feeds all of them unchanged.
- *
- * `aliases` is pure legacy: both names were published before the vocabularies
- * were aligned, so an integration already sending them keeps working.
+ * drops a value, so one payload feeds all of them unchanged.
+ * `aliases.coins` keeps the older plural name working.
  */
 export const PRIZE = Object.freeze({
-  valid: Object.freeze(['cash', 'cashback', 'coin', 'free-spins']),
+  valid: Object.freeze(['cash', 'cashback', 'coin', 'free-spins', 'free-chips', 'bonus-money']),
   default: 'coin',
-  aliases: Object.freeze({ 'bonus-money': 'cash', coins: 'coin' }),
+  aliases: Object.freeze({ coins: 'coin' }),
 });
 
 export const DEFAULT_TITLES = Object.freeze({

@@ -50,7 +50,14 @@ test('an unknown prize type falls back to the brand default', () => {
 });
 
 test('the shared contract values resolve on both brands', () => {
-  for (const prizeType of ['cash', 'cashback', 'coin', 'free-spins']) {
+  for (const prizeType of [
+    'cash',
+    'cashback',
+    'coin',
+    'free-spins',
+    'free-chips',
+    'bonus-money',
+  ]) {
     assert.equal(prizeTypeOf({ prizeType }, VEGAS_PRIZE), prizeType);
     assert.equal(prizeTypeOf({ prizeType }, THOR_PRIZE), prizeType);
   }
@@ -58,7 +65,7 @@ test('the shared contract values resolve on both brands', () => {
 
 test('the prize vocabulary is the same in every brand', () => {
   // The whole point of the contract's §11: a brand draws its own art for the
-  // four values but never adds, drops or renames one. A brand-local value would
+  // six values but never adds, drops or renames one. A brand-local value would
   // put the backend back to branching per brand.
   assert.deepEqual([...VEGAS_PRIZE.valid], [...THOR_PRIZE.valid]);
   assert.equal(VEGAS_PRIZE.default, THOR_PRIZE.default);
@@ -66,12 +73,20 @@ test('the prize vocabulary is the same in every brand', () => {
 });
 
 test('names the contract published earlier still resolve', () => {
-  // `bonus-money` was what banknotes were called, `coins` the plural Thor
-  // shipped — both stay accepted so a live integration does not break.
-  assert.equal(prizeTypeOf({ prizeType: 'bonus-money' }, VEGAS_PRIZE), 'cash');
-  assert.equal(prizeTypeOf({ prizeType: 'bonus-money' }, THOR_PRIZE), 'cash');
+  // `coins` is the plural Thor shipped before the vocabularies were aligned; it
+  // stays accepted so a live integration does not break.
   assert.equal(prizeTypeOf({ prizeType: 'coins' }, VEGAS_PRIZE), 'coin');
   assert.equal(prizeTypeOf({ prizeType: 'coins' }, THOR_PRIZE), 'coin');
+});
+
+test('bonus-money is a prize of its own, no longer an alias for cash', () => {
+  // It used to alias `cash`, on the assumption that bonus money and banknotes
+  // were one prize under two names. They are not, and the alias is what made a
+  // real `bonus-money` payload render as cash — the regression this pins down.
+  assert.equal(prizeTypeOf({ prizeType: 'bonus-money' }, VEGAS_PRIZE), 'bonus-money');
+  assert.equal(prizeTypeOf({ prizeType: 'bonus-money' }, THOR_PRIZE), 'bonus-money');
+  assert.ok(!('bonus-money' in VEGAS_PRIZE.aliases));
+  assert.ok(!('bonus-money' in THOR_PRIZE.aliases));
 });
 
 /** A prize type is a contract value, and the art map keyed by it is a brand's

@@ -33,6 +33,8 @@ export const PRIZE_ART = Object.freeze({
   cashback: `${BASE}/prizes/cashback.webp`, // piggy bank
   coin: `${BASE}/prizes/coin.webp`,
   'free-spins': `${BASE}/prizes/free-spins.webp`,
+  'free-chips': `${BASE}/prizes/free-chips.webp`,
+  'bonus-money': `${BASE}/prizes/bonus-money.webp`,
 });
 
 /** Missed-day art keyed by prize type (prize embedded in a disco ball). */
@@ -41,6 +43,8 @@ export const MISSED_ART = Object.freeze({
   cashback: `${BASE}/missed/cashback.webp`,
   coin: `${BASE}/missed/coin.webp`,
   'free-spins': `${BASE}/missed/free-spins.webp`,
+  'free-chips': `${BASE}/missed/free-chips.webp`,
+  'bonus-money': `${BASE}/missed/bonus-money.webp`,
 });
 
 /**
