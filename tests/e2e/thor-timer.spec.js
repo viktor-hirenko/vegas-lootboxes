@@ -7,7 +7,7 @@ test.describe('thor timer', () => {
 
     const timerTo = Date.now() + 120_000;
     await sendCards(page, [
-      { index: 1, state: 'prize', date: '1 Mar', title: '20 Free Spins', prizeType: 'coin' },
+      { index: 1, state: 'prize', date: '1 Mar', title: '20 Free Spins', prizeType: 'coins' },
       { index: 2, state: 'locked', date: '2 Mar', timerTo },
       { index: 3, state: 'locked', date: '3 Mar' },
     ]);

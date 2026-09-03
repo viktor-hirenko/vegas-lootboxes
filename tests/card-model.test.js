@@ -7,10 +7,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { isActive, isClickable, hasCta, prizeTypeOf, statusTextFor } from '../core/card-model.js';
+import { isActive, isClickable, hasCta, prizeTypeOf, isNoPrizeType, statusTextFor } from '../core/card-model.js';
 import { PRIZE as VEGAS_PRIZE } from '../lootbox/vocabulary.js';
 import { PRIZE as THOR_PRIZE } from '../lootbox-2/vocabulary.js';
-import { statusTextFor as thorStatusTextFor } from '../lootbox-2/render.js';
+import { statusTextFor as thorStatusTextFor, renderInner as renderThor } from '../lootbox-2/render.js';
+import { renderInner as renderVegas } from '../lootbox/render.js';
 import { PRIZE_ART, MISSED_ART as VEGAS_MISSED_ART } from '../lootbox/icons.js';
 import {
   OBJECTS_LG,
@@ -45,15 +46,29 @@ test('hasCta matches the clickability rule for results only', () => {
 });
 
 test('an unknown prize type falls back to the brand default', () => {
-  assert.equal(prizeTypeOf({ prizeType: 'nonsense' }, VEGAS_PRIZE), 'coin');
-  assert.equal(prizeTypeOf({}, THOR_PRIZE), 'coin');
+  assert.equal(prizeTypeOf({ prizeType: 'nonsense' }, VEGAS_PRIZE), 'coins');
+  assert.equal(prizeTypeOf({}, THOR_PRIZE), 'coins');
+  // `"prediction"` is a no-prize marker, not a seventh prize. Resolving it
+  // through the vocabulary must keep the default — otherwise empty and
+  // `"prediction"` would collapse into the same art.
+  assert.equal(prizeTypeOf({ prizeType: 'prediction' }, VEGAS_PRIZE), 'coins');
+  assert.equal(prizeTypeOf({ prizeType: 'prediction' }, THOR_PRIZE), 'coins');
+});
+
+test('only the literal prizeType "prediction" is the no-prize marker', () => {
+  assert.equal(isNoPrizeType({ prizeType: 'prediction' }), true);
+  assert.equal(isNoPrizeType({ prizeType: '' }), false);
+  assert.equal(isNoPrizeType({}), false);
+  assert.equal(isNoPrizeType({ prizeType: 'coins' }), false);
+  assert.ok(!VEGAS_PRIZE.valid.includes('prediction'));
+  assert.ok(!THOR_PRIZE.valid.includes('prediction'));
 });
 
 test('the shared contract values resolve on both brands', () => {
   for (const prizeType of [
     'cash',
     'cashback',
-    'coin',
+    'coins',
     'free-spins',
     'free-chips',
     'bonus-money',
@@ -73,10 +88,16 @@ test('the prize vocabulary is the same in every brand', () => {
 });
 
 test('names the contract published earlier still resolve', () => {
-  // `coins` is the plural Thor shipped before the vocabularies were aligned; it
-  // stays accepted so a live integration does not break.
-  assert.equal(prizeTypeOf({ prizeType: 'coins' }, VEGAS_PRIZE), 'coin');
-  assert.equal(prizeTypeOf({ prizeType: 'coins' }, THOR_PRIZE), 'coin');
+  // The coin went `coins` -> `coin` -> `coins`: the host's own bonus dictionary
+  // says `coins`, so that is the contract value, and the singular the contract
+  // published in between stays accepted so a live integration does not break.
+  assert.equal(prizeTypeOf({ prizeType: 'coin' }, VEGAS_PRIZE), 'coins');
+  assert.equal(prizeTypeOf({ prizeType: 'coin' }, THOR_PRIZE), 'coins');
+  // And the current name is the canonical one on both brands, not an alias.
+  assert.ok(VEGAS_PRIZE.valid.includes('coins'));
+  assert.ok(THOR_PRIZE.valid.includes('coins'));
+  assert.ok(!VEGAS_PRIZE.valid.includes('coin'));
+  assert.ok(!THOR_PRIZE.valid.includes('coin'));
 });
 
 test('bonus-money is a prize of its own, no longer an alias for cash', () => {
@@ -130,6 +151,54 @@ test('status badge text: Not opened on missed, Opened on history, empty on today
   assert.equal(statusTextFor({ state: 'locked' }, false), '');
   // the parent can override the wording
   assert.equal(statusTextFor({ state: 'missed', tag: 'Expired' }, false), 'Expired');
+});
+
+function objectSrc(html) {
+  const match = html.match(/class="lb-card__object"[^>]*src="([^"]+)"/);
+  assert.ok(match, 'renderInner did not emit .lb-card__object');
+  return match[1];
+}
+
+test('missed + prizeType prediction picks brand no-prize art, empty does not', () => {
+  assert.equal(
+    objectSrc(renderThor({ state: 'missed', prizeType: 'prediction' })),
+    THOR_MISSED_ART.cookies,
+  );
+  assert.equal(
+    objectSrc(renderThor({ state: 'missed', prizeType: '' })),
+    THOR_MISSED_ART.coins,
+  );
+  assert.equal(
+    objectSrc(renderThor({ state: 'missed', prizeType: 'cash' })),
+    THOR_MISSED_ART.cash,
+  );
+  // Vegas has no missed-prediction ball yet; the marker still must not ride
+  // the unknown→coin path for any other reason than this explicit branch.
+  assert.equal(
+    objectSrc(renderVegas({ state: 'missed', prizeType: 'prediction' })),
+    VEGAS_MISSED_ART.coins,
+  );
+  assert.equal(
+    objectSrc(renderVegas({ state: 'missed', prizeType: '' })),
+    VEGAS_MISSED_ART.coins,
+  );
+  assert.equal(
+    objectSrc(renderVegas({ state: 'missed', prizeType: 'cash' })),
+    VEGAS_MISSED_ART.cash,
+  );
+});
+
+test('opened prediction art ignores prizeType', () => {
+  const thorOpened = objectSrc(renderThor({ state: 'prediction' }, { active: false }));
+  assert.equal(thorOpened, OBJECTS_SM.cookies);
+  assert.equal(
+    objectSrc(renderThor({ state: 'prediction', prizeType: 'prediction' }, { active: false })),
+    thorOpened,
+  );
+  assert.equal(
+    objectSrc(renderThor({ state: 'prediction', prizeType: '' }, { active: false })),
+    thorOpened,
+  );
 });
 
 test('Thor leaves an opened result to a bare date pill, today or in history', () => {

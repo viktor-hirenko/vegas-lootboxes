@@ -9,12 +9,16 @@ import { CARD_STATE } from '../core/protocol.js';
  * Prize art vocabulary. The six values are the contract's (§11) and are the
  * same in every brand — each brand draws its own art for them, none adds or
  * drops a value, so one payload feeds all of them unchanged.
- * `aliases.coins` keeps the older plural name working.
+ *
+ * The coin is `coins`, plural: that is the name the host's own bonus dictionary
+ * uses, and carrying two spellings is what made the two sides read each other's
+ * payloads wrong. `aliases.coin` keeps the singular the contract published
+ * earlier working, so a live integration still resolves.
  */
 export const PRIZE = Object.freeze({
-  valid: Object.freeze(['cash', 'cashback', 'coin', 'free-spins', 'free-chips', 'bonus-money']),
-  default: 'coin',
-  aliases: Object.freeze({ coins: 'coin' }),
+  valid: Object.freeze(['cash', 'cashback', 'coins', 'free-spins', 'free-chips', 'bonus-money']),
+  default: 'coins',
+  aliases: Object.freeze({ coin: 'coins' }),
 });
 
 export const DEFAULT_TITLES = Object.freeze({

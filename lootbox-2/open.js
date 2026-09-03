@@ -4,7 +4,7 @@
 //
 // Timings live in open-animation.js; the CSS side is in theme.css.
 
-import { isActive, prizeTypeOf } from '../core/card-model.js';
+import { isActive, prizeTypeOf, isNoPrizeType } from '../core/card-model.js';
 import { prefersReducedMotion } from '../core/transitions.js';
 import { warmAssets, waitForImageElement } from '../core/asset-preload.js';
 import { OBJECTS_LG, MISSED_ART, BACKGROUNDS } from './icons.js';
@@ -179,7 +179,10 @@ export async function playMissedBurn(el, card) {
   // `.poster` because BACKGROUNDS entries are descriptors now, not bare URLs —
   // passing the object would have `warmAssets` fetch "[object Object]", and it
   // swallows its own errors, so the only symptom would be a slower final swap.
-  warmAssets([MISSED_ART[prizeTypeOf(card, PRIZE)], BACKGROUNDS.missed.poster.fallback]);
+  const missedArt = isNoPrizeType(card)
+    ? MISSED_ART.cookies
+    : MISSED_ART[prizeTypeOf(card, PRIZE)];
+  warmAssets([missedArt, BACKGROUNDS.missed.poster.fallback]);
 
   el.classList.add('lb-card--burning');
   const [staged] = await Promise.all([face, wait(BURN_ANIMATION.DRAIN_MS)]);

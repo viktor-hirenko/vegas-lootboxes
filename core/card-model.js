@@ -55,6 +55,20 @@ export function prizeTypeOf(card, prize) {
   return prize.default;
 }
 
+/**
+ * Host marker for a day with no prize. Not a prize type and not in `PRIZE.valid`.
+ *
+ * Empty or unknown `prizeType` must not mean this: hosts also send an empty
+ * string when a bonus name is missing from their dictionary, and those cards
+ * have to keep the default coin. Only the literal `"prediction"` is the marker.
+ *
+ * @param {{ prizeType?: string }} card
+ * @returns {boolean}
+ */
+export function isNoPrizeType(card) {
+  return card.prizeType === 'prediction';
+}
+
 /** Status badge text: "Not opened" on a missed day, "Opened" on a past result. */
 export function statusTextFor(card, active) {
   if (card.state === CARD_STATE.MISSED) return card.tag || 'Not opened';

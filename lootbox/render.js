@@ -8,6 +8,7 @@ import {
   isActive,
   hasCta,
   prizeTypeOf,
+  isNoPrizeType,
   statusTextFor,
   renderBadges,
 } from '../core/card-model.js';
@@ -40,6 +41,9 @@ function objectFor(card, active) {
     case CARD_STATE.PRIZE:
       return PRIZE_ART[prizeTypeOf(card, PRIZE)];
     case CARD_STATE.MISSED:
+      // No missed-prediction ball in the Vegas kit yet. Same marker as Thor;
+      // until that art exists the card keeps the coin the host already sees.
+      if (isNoPrizeType(card)) return MISSED_ART.coins;
       return MISSED_ART[prizeTypeOf(card, PRIZE)];
     default: // prediction
       // Active (today's) prediction loops the animated ball SVG; a previous-day

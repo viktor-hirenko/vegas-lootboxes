@@ -31,7 +31,7 @@ export const OBJECTS = Object.freeze({
 export const PRIZE_ART = Object.freeze({
   cash: `${BASE}/prizes/cash.webp`, // banknotes
   cashback: `${BASE}/prizes/cashback.webp`, // piggy bank
-  coin: `${BASE}/prizes/coin.webp`,
+  coins: `${BASE}/prizes/coin.webp`, // key is the contract's `coins`; the file keeps its name
   'free-spins': `${BASE}/prizes/free-spins.webp`,
   'free-chips': `${BASE}/prizes/free-chips.webp`,
   'bonus-money': `${BASE}/prizes/bonus-money.webp`,
@@ -41,7 +41,7 @@ export const PRIZE_ART = Object.freeze({
 export const MISSED_ART = Object.freeze({
   cash: `${BASE}/missed/cash.webp`,
   cashback: `${BASE}/missed/cashback.webp`,
-  coin: `${BASE}/missed/coin.webp`,
+  coins: `${BASE}/missed/coin.webp`,
   'free-spins': `${BASE}/missed/free-spins.webp`,
   'free-chips': `${BASE}/missed/free-chips.webp`,
   'bonus-money': `${BASE}/missed/bonus-money.webp`,

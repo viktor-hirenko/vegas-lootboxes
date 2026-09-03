@@ -119,7 +119,7 @@ function posterOnly(entry) {
 export const OBJECTS_LG = Object.freeze({
   cash: `${BASE}/objects-lg/cash.webp`, // banknotes with coins
   cashback: `${BASE}/objects-lg/cashback.webp`, // banknotes with a return arrow
-  coin: `${BASE}/objects-lg/coin.webp`,
+  coins: `${BASE}/objects-lg/coin.webp`, // key is the contract's `coins`; the file keeps its name
   'free-spins': `${BASE}/objects-lg/free-spins.webp`,
   'free-chips': `${BASE}/objects-lg/free-chips.webp`,
   'bonus-money': `${BASE}/objects-lg/bonus-money.webp`,
@@ -131,7 +131,7 @@ export const OBJECTS_LG = Object.freeze({
 export const OBJECTS_SM = Object.freeze({
   cash: `${BASE}/objects-sm/cash.webp`,
   cashback: `${BASE}/objects-sm/cashback.webp`,
-  coin: `${BASE}/objects-sm/coin.webp`,
+  coins: `${BASE}/objects-sm/coin.webp`,
   'free-spins': `${BASE}/objects-sm/free-spins.webp`,
   'free-chips': `${BASE}/objects-sm/free-chips.webp`,
   'bonus-money': `${BASE}/objects-sm/bonus-money.webp`,
@@ -144,7 +144,7 @@ export const OBJECTS_SM = Object.freeze({
 export const MISSED_ART = Object.freeze({
   cash: `${BASE}/missed/cash.webp`,
   cashback: `${BASE}/missed/cashback.webp`,
-  coin: `${BASE}/missed/coin.webp`,
+  coins: `${BASE}/missed/coin.webp`,
   'free-spins': `${BASE}/missed/free-spins.webp`,
   'free-chips': `${BASE}/missed/free-chips.webp`,
   'bonus-money': `${BASE}/missed/bonus-money.webp`,

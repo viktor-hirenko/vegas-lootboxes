@@ -8,6 +8,7 @@ import {
   isActive,
   hasCta,
   prizeTypeOf,
+  isNoPrizeType,
   renderBadges,
 } from '../core/card-model.js';
 import { formatCountdown } from '../core/countdown.js';
@@ -54,6 +55,9 @@ function objectFor(card, active) {
     case CARD_STATE.LOCKED:
       return OBJECTS_SM.lock;
     case CARD_STATE.MISSED:
+      // No-prize missed day: grey cookie. `"prediction"` is a host marker, not
+      // a prize type — empty/unknown still falls through to the default coin.
+      if (isNoPrizeType(card)) return MISSED_ART.cookies;
       return MISSED_ART[prizeTypeOf(card, PRIZE)];
     case CARD_STATE.PREDICTION:
       // Fortune cookie — the same object in both sizes.

@@ -11,7 +11,10 @@
  *   rendered above the iframe (it belongs to the site, not to the widget)
  * @property {{ color: string, desktop?: string, mobile?: string, gradient?: string }} stage
  *   preview backdrop: a base colour plus either bitmap variants or a CSS gradient
- * @property {string[]} prizeTypes values offered in the prize-type selects
+ * @property {string[]} prizeTypes values offered in the prize-type selects: the
+ *   contract's six prize names plus `prediction`, which is not a prize but the
+ *   marker for a day that had none (see INTEGRATION.md §11). It is in the list
+ *   because QA has to be able to reproduce a missed no-prize day here.
  * @property {{ prize: object, prediction: object }} mockDefaults payload the mock
  *   backend falls back to when its fields are left blank
  * @property {{ prize: string, prediction: string }} mockOutcomeLabels copy for the
@@ -68,6 +71,10 @@ function scenarios(art) {
     ...extra,
   })
   const available = n => ({ state: 'available', date: day(n) })
+  // A day that carried no prize. `prizeType: 'prediction'` is the agreed marker
+  // for both halves of that case — the missed one and the opened one.
+  const noPrizeMissed = n => ({ state: 'missed', date: day(n), prizeType: 'prediction' })
+  const noPrizeOpened = n => ({ state: 'prediction', date: day(n), prizeType: 'prediction' })
 
   return [
     {
@@ -89,6 +96,11 @@ function scenarios(art) {
       id: 'day1-prize-day2-open',
       label: 'День 1 із призом, день 2 відкритий',
       cards: month([win(1), available(2)]),
+    },
+    {
+      id: 'no-prize-days',
+      label: 'День без призу: пропущений і відкритий',
+      cards: month([noPrizeMissed(1), noPrizeOpened(2), available(3)]),
     },
     {
       id: 'two-missed',
@@ -116,11 +128,14 @@ export const PROJECTS = Object.freeze({
       desktop: './assets/backgrounds/bg-desktop.png',
       mobile: './assets/backgrounds/bg-mobile.png',
     }),
-    prizeTypes: Object.freeze(['coin', 'cash', 'cashback', 'free-spins', 'free-chips', 'bonus-money']),
+    prizeTypes: Object.freeze([
+      'coins', 'cash', 'cashback', 'free-spins', 'free-chips', 'bonus-money',
+      'prediction', // not a prize — the no-prize marker, see the typedef above
+    ]),
     mockDefaults: Object.freeze({
       prize: Object.freeze({
         title: '20 CAD bonus',
-        prizeType: 'coin',
+        prizeType: 'coins',
         cta: 'Go to Bonuses',
         tag: 'Opened',
       }),
@@ -156,13 +171,16 @@ export const PROJECTS = Object.freeze({
       desktop: './assets/backgrounds/thor-bg-desktop.webp',
       mobile: './assets/backgrounds/thor-bg-mobile.webp',
     }),
-    prizeTypes: Object.freeze(['coin', 'cash', 'cashback', 'free-spins', 'free-chips', 'bonus-money']),
+    prizeTypes: Object.freeze([
+      'coins', 'cash', 'cashback', 'free-spins', 'free-chips', 'bonus-money',
+      'prediction', // not a prize — the no-prize marker, see the typedef above
+    ]),
     mockDefaults: Object.freeze({
       // No `tag`: Thor keeps an opened result to a bare date pill, so a status
       // badge sent here would be dropped by the widget anyway.
       prize: Object.freeze({
         title: '20 Free Spins',
-        prizeType: 'coin',
+        prizeType: 'coins',
         cta: 'Go to Bonuses',
       }),
       prediction: Object.freeze({

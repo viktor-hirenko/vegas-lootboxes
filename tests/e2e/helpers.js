@@ -73,7 +73,7 @@ export async function waitForCards(frame) {
 /** A four-card ribbon covering the states worth measuring: one history result, the
  * active day, and two locked days so one of them becomes the spotlight. */
 const STANDALONE_CARDS = [
-  'c1_state=prize&c1_date=1+Mar&c1_prize=coin&c1_title=20+Free+Spins',
+  'c1_state=prize&c1_date=1+Mar&c1_prize=coins&c1_title=20+Free+Spins',
   'c2_state=available&c2_date=2+Mar',
   'c3_state=locked&c3_date=3+Mar',
   'c4_state=locked&c4_date=4+Mar',
