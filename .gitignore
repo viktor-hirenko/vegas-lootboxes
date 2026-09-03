@@ -6,6 +6,8 @@ desktop.ini
 .vite/
 .project-context/
 .tmp/
+# Локальное состояние claude-flow: метрики и сессии тулинга, не код проекта.
+.claude-flow/
 # PNG-секвенции от `npm run build:animations -- --emit-frames`: промежуточный
 # материал для ручной конвертации, а не ассет.
 lootbox-2/animation-source/frames/
