@@ -9,7 +9,12 @@
 // markup and animations through the object described by the `Brand` typedef
 // below; it never reaches into this file.
 
-import { MESSAGE_TYPES, DEFAULT_SKELETON_COUNT, CARD_STATE } from './protocol.js';
+import {
+  MESSAGE_TYPES,
+  DEFAULT_SKELETON_COUNT,
+  OPEN_TIMEOUT_MS,
+  CARD_STATE,
+} from './protocol.js';
 import { parseWidgetParams } from './params.js';
 import { createMessageBus } from './message-bus.js';
 import { createContentStore } from './content-store.js';
@@ -274,7 +279,38 @@ export function createWidget(brand) {
 
   // Card ids whose open sequence is mid-flight: they have started Phase 1 and
   // are waiting for the backend result (setCardState) that triggers Phase 2.
-  const openingCards = new Set();
+  // Each maps to the timer that gives up on the parent. Membership doubles as
+  // the "a play is already running" flag `handleCardClick` guards on.
+  const openingCards = new Map();
+
+  /** Stop tracking a card's open sequence and cancel its give-up timer.
+   * @returns {boolean} whether the card was actually mid-open */
+  function endOpenSequence(id) {
+    const key = String(id);
+    const timer = openingCards.get(key);
+    if (timer !== undefined) window.clearTimeout(timer);
+    return openingCards.delete(key);
+  }
+
+  /**
+   * The parent went quiet: no `setCardState` ever came back for a card we put
+   * into Phase 1. Hand the card back instead of leaving it charging forever —
+   * a charging card is not clickable, so without this the player cannot even
+   * retry and the row stays stuck until a reload.
+   *
+   * `render()` rebuilds the row from the store, which is all the recovery
+   * needed: neither brand's `startOpenCharge` does more than add classes and
+   * warm assets, so the rebuilt card comes back clean and clickable.
+   */
+  function abandonOpenSequence(card) {
+    if (!endOpenSequence(card.id)) return;
+    bus.postToParent(MESSAGE_TYPES.OPEN_TIMEOUT, {
+      index: card.index,
+      id: card.id,
+      waitedMs: OPEN_TIMEOUT_MS,
+    });
+    render();
+  }
 
   /** Runs Phase 2 (reveal) on a charging card, then notifies the parent and
    * settles the card to its final static render. */
@@ -297,6 +333,15 @@ export function createWidget(brand) {
   }
 
   function handleCardClick(card) {
+    // A card already mid-open has asked the parent once and is still waiting.
+    // Asking again would be a second API call for one player intent, which on a
+    // non-idempotent backend spends a second attempt. The guard lives here, in
+    // logic, because the brands' `pointer-events: none` only stops a mouse —
+    // the card is still a focused <button>, so Enter went straight through it.
+    // Re-clicks on an opened prize are NOT guarded: reopening the win popup is
+    // a repeatable action and never enters this set.
+    if (openingCards.has(String(card.id))) return;
+
     bus.postToParent(MESSAGE_TYPES.CARD_CLICK, {
       index: card.index,
       id: card.id,
@@ -308,7 +353,14 @@ export function createWidget(brand) {
     if (card.state === CARD_STATE.AVAILABLE) {
       const el = findCardElement(card);
       if (el) {
-        openingCards.add(String(card.id));
+        openingCards.set(
+          String(card.id),
+          window.setTimeout(() => abandonOpenSequence(card), OPEN_TIMEOUT_MS),
+        );
+        // Belt to the guard's braces, and the honest signal for assistive tech:
+        // the button is out of play until this resolves. render() rebuilds the
+        // card from scratch either way, so the flag never outlives the wait.
+        if (el instanceof HTMLButtonElement) el.disabled = true;
         brand.startOpenCharge(el);
       }
     }
@@ -343,6 +395,12 @@ export function createWidget(brand) {
       existing && openingCards.has(String(existing.id)) && revealStates.includes(payload.state),
     );
 
+    // ANY answer about this card ends the wait, not just a result: a parent that
+    // rolls a failed open back to `available` is answering too. Clearing only on
+    // the reveal used to leave the id behind, and a later unrelated `prize` for
+    // that card would then replay the open animation out of nowhere.
+    if (existing) endOpenSequence(existing.id);
+
     suppressRender = willReveal;
     const updated = store.updateCard(matcher, {
       state: payload.state,
@@ -360,7 +418,6 @@ export function createWidget(brand) {
     if (updated) isLoading = false;
 
     if (willReveal) {
-      openingCards.delete(String(existing.id));
       revealOpenResult(store.findCard(matcher));
       return;
     }

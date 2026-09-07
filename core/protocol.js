@@ -38,6 +38,23 @@ export const DEFAULT_LANG = 'en'
  * (no card params in the URL yet and no setContent received). */
 export const DEFAULT_SKELETON_COUNT = 5
 
+/**
+ * How long the widget waits for the parent's `setCardState` after a card was
+ * clicked, before it gives the card back to the player.
+ *
+ * There is no transport underneath us to time this out on its own: the widget
+ * does not call the backend, it asks the parent page to, and a parent that never
+ * answers is indistinguishable from one that is still working. Without a
+ * deadline the card charges forever, and because a charging card is not
+ * clickable the player cannot even retry — only a reload gets out of it.
+ *
+ * 15s is chosen to be longer than any answer worth waiting for on a slow mobile
+ * connection, and short of the point where a player concludes the page is dead.
+ * Erring long is deliberate: giving up while the parent is still working risks
+ * the player losing an attempt the backend already spent.
+ */
+export const OPEN_TIMEOUT_MS = 15000
+
 /** postMessage `type` values. Message shape is always `{ type, data }`. */
 export const MESSAGE_TYPES = Object.freeze({
   // iFrame -> Parent
@@ -48,6 +65,11 @@ export const MESSAGE_TYPES = Object.freeze({
   /** A card's countdown reached zero. The parent should refetch and push a fresh
    * `setContent`, otherwise the badge stays pinned at 00:00:00. */
   TIMER_END: 'timerEnd',
+  /** The widget waited OPEN_TIMEOUT_MS for a `setCardState` after `cardClick`
+   * and gave up: the card has been returned to its previous state and is
+   * clickable again. The parent should surface its own error and may still send
+   * a late `setCardState` — it will simply render without the open animation. */
+  OPEN_TIMEOUT: 'openTimeout',
   // Parent -> iFrame
   SET_CONTENT: 'setContent',
   SET_CARD_STATE: 'setCardState',

@@ -15,10 +15,29 @@ function installReadyProbe(page) {
     // Runs in the widget iframe too, where it simply never increments — harmless,
     // and cheaper than trying to detect which frame this is.
     window.__lbReadyCount = 0;
+    // Every type the widget posts, in order. The sandbox has its own on-screen
+    // log, but reading the DOM of a log panel makes a spec depend on that panel's
+    // markup; this is the same data at the source.
+    window.__lbMessages = [];
     window.addEventListener('message', (event) => {
-      if (event.data?.type === 'ready') window.__lbReadyCount += 1;
+      const type = event.data?.type;
+      if (!type) return;
+      window.__lbMessages.push(type);
+      if (type === 'ready') window.__lbReadyCount += 1;
     });
   });
+}
+
+/**
+ * How many times the widget has posted `type` to the parent since load.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} type
+ */
+export async function countWidgetMessages(page, type) {
+  return page.evaluate(
+    (wanted) => (window.__lbMessages ?? []).filter((t) => t === wanted).length,
+    type,
+  );
 }
 
 /** @param {import('@playwright/test').Page} page */
