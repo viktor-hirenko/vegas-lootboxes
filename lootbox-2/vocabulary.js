@@ -21,11 +21,37 @@ export const PRIZE = Object.freeze({
   aliases: Object.freeze({ coin: 'coins' }),
 });
 
+/**
+ * Card copy the widget supplies itself.
+ *
+ * These three states carry no prize name, so the host sends no `title` for them
+ * — the agreed payload for a day without a prize is `{ state, prizeType }` and
+ * nothing more (see .project-context/missed-prediction-2026-09-03.md). What is
+ * written here is therefore what the player actually reads, which is why the
+ * line breaks are baked in rather than left to the box width: the design breaks
+ * both two-line titles at a specific word, and `.lb-card__title` is
+ * `white-space: pre-line` in theme.css so a `\n` survives to the screen.
+ */
 export const DEFAULT_TITLES = Object.freeze({
-  [CARD_STATE.AVAILABLE]: 'Flip to claim\nyour perk',
-  [CARD_STATE.LOCKED]: 'Locked',
-  [CARD_STATE.PREDICTION]: 'Your greatest dreams are about to come true',
+  [CARD_STATE.AVAILABLE]: "See what's\ninside",
+  [CARD_STATE.LOCKED]: 'Opens soon',
+  [CARD_STATE.PREDICTION]: 'Your lucky sign\nis near',
 });
 
-/** Second line on a missed day, under the lost prize's name. */
-export const DEFAULT_MISSED_SUBTITLE = 'One day slipped away';
+/** The one locked day that is next up says when it opens; every other locked day
+ * keeps the vaguer `DEFAULT_TITLES[LOCKED]`. Which card that is comes from the
+ * core's `findSpotlightLockedIndex`, the same flag that decides which locked day
+ * animates. */
+export const NEXT_LOCKED_TITLE = 'Opens tomorrow';
+
+/**
+ * Status chip labels — the pill under the title on a card whose day is over.
+ *
+ * Only two tones exist in the design: a missed day is amber, a day that was
+ * opened (prize or prediction) is green. The host can override either text
+ * through `card.tag`; these are the fallbacks.
+ */
+export const STATUS_LABELS = Object.freeze({
+  missed: 'Missed',
+  revealed: 'Revealed',
+});

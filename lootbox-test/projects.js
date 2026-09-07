@@ -176,8 +176,9 @@ export const PROJECTS = Object.freeze({
       'prediction', // not a prize — the no-prize marker, see the typedef above
     ]),
     mockDefaults: Object.freeze({
-      // No `tag`: Thor keeps an opened result to a bare date pill, so a status
-      // badge sent here would be dropped by the widget anyway.
+      // No `tag`: the widget already labels a past day "Revealed" on its own, and
+      // leaving this blank is what exercises that default — which is what the
+      // live host does too.
       prize: Object.freeze({
         title: '20 Free Spins',
         prizeType: 'coins',
@@ -193,10 +194,12 @@ export const PROJECTS = Object.freeze({
       prediction: 'prediction — передбачення (без призу)',
     }),
     integrationFlowReveal: 'flip-анімацією відкриває результат',
-    // `tagOnHistory: false` — an opened Thor day is a bare date pill, so a
-    // status badge sent for it is dropped by the widget (same reason
-    // `mockDefaults.prize` carries no `tag`).
-    supports: Object.freeze({ subtitle: true, timer: true, tagOnHistory: false }),
+    // A past Thor day carries a "Revealed"/"Missed" chip under its title, so a
+    // `tag` sent for it is rendered — hence `tagOnHistory: true`. `timer` is off:
+    // no Thor state counts down any more. `subtitle` stays on — the widget still
+    // renders one that is sent, it just no longer invents a default on a missed
+    // day, which the design replaced with the chip.
+    supports: Object.freeze({ subtitle: true, timer: false, tagOnHistory: true }),
     scenarios: scenarios({
       win: 'free-spins',
       winTitle: '20 Free Spins',

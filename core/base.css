@@ -427,7 +427,7 @@ button.lb-card:active {
   word-break: break-word;
 }
 
-/* Second line under the title (e.g. "One day slipped away" on a missed day).
+/* Second line under the title, when the parent sends `subtitle`.
    The title's margin-top:auto still pushes the whole title+subtitle group to the
    bottom, so the subtitle only needs its own gap. */
 .lb-card__subtitle {

@@ -12,12 +12,14 @@
 :root {
   /* Theme colors */
   --lb-text: #f7f7f7;
-  /* Date badge — filled pill (Thor/Brand/Tertiary at 40%) */
-  --lb-badge-bg: rgba(88, 72, 139, 0.4);
-  --lb-badge-text: #f7f7f7;
-  /* Status badge — outline pill: countdown / Not opened */
-  --lb-badge-outline-border: rgba(88, 72, 139, 0.72);
-  --lb-badge-outline-text: #b6bdcc;
+  /* Date badge — filled pill (component/badge/neutral/*) */
+  --lb-badge-bg: rgba(34, 28, 54, 0.8);
+  --lb-badge-text: #fcfcfc;
+  /* Status chip under the title (component/badge/status/*). One text colour for
+     both tones: the fills are bright enough to carry near-black either way. */
+  --lb-status-text: #110e1b;
+  --lb-status-missed-bg: #fec352;
+  --lb-status-revealed-bg: #3edc6a;
   /* Primary button: mint on near-black (component/button/primary/*) */
   --lb-cta-bg: #00eda6;
   --lb-cta-text: #110e1b;
@@ -31,10 +33,12 @@
   --lb-arrow-bg: #3a2f5c;
   --lb-arrow-bg-hover: #4a3d72;
   --lb-arrow-icon: #fcfcfc;
-  --lb-skeleton-bg: #1a1030;
+  --lb-skeleton-bg: #221c36;
 
   /* Second text line (missed day) */
   --lb-subtitle-text: #bdcaff;
+  /* A missed day's prize name, cooler than a won one (Text/color-text-body) */
+  --lb-missed-title-text: #b6bdcc;
   /* Neon halo cast by today's card, and the flat card colour behind the art. */
   --lb-active-glow: rgba(255, 133, 245, 0.55);
   --lb-card-bg: #040012;
@@ -44,11 +48,19 @@
      cannot be rounded in the raster and their rim cannot be baked to the edge —
      both move to CSS. 2px on the 208 design grid, per Figma 215:35927. */
   --lb-b2-rim-w: calc(var(--lb-card-width) / 208 * 2);
-  /* Figma 215:35927 (active card) and 215:35929 (locked day). The locked rim is a
-     saturated blue-violet, not a near-white like the live one — do not "harmonise"
-     them. */
-  --lb-b2-rim-live: #ffe1ff;
-  --lb-b2-rim-locked: #4f5fef;
+  /* The rim is a vertical GRADIENT in the design, sampled off the Figma card
+     exports (Components board, 102648:90121) rather than guessed: the live rim
+     starts near-white pink, bottoms out in saturated violet just past a third of
+     the way down, then climbs back; the locked one runs a straight blue-violet
+     into deep blue. Do not "harmonise" the two — they are different ramps.
+
+     The flat pair below is the fallback for engines without `mask-composite`,
+     and is the single brightest stop of each ramp (i.e. what the widget drew
+     before the gradient landed). */
+  --lb-b2-rim-live: linear-gradient(180deg, #ffe1ff 0%, #8514a9 35%, #c071e2 100%);
+  --lb-b2-rim-locked: linear-gradient(180deg, #4f5fef 0%, #0034ad 100%);
+  --lb-b2-rim-live-flat: #ffe1ff;
+  --lb-b2-rim-locked-flat: #4f5fef;
 }
 
 /* Thor's rim: baked on three states, CSS on two ----------------------------
@@ -76,13 +88,16 @@
   background: var(--lb-card-bg);
   /* The design centres the text block on a fixed vertical band per state rather
      than pinning it to the bottom edge, so the bottom padding here is the
-     distance to the BOTTOM of that band, not to the text itself. */
-  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 42);
-  /* CTA: 176x32, 34 from the bottom edge of the 208x320 active frame. The gap
-     makes the derived with-button bottom padding land on 70 (see core/base.css). */
-  --lb-cta-bottom: calc(var(--lb-card-width) / 208 * 34);
-  --lb-cta-h: calc(var(--lb-card-width) / 208 * 32);
-  --lb-cta-gap: calc(var(--lb-card-width) / 208 * 4);
+     distance to the BOTTOM of that band, not to the text itself. 31 is the
+     locked day's value; every other state overrides it below. */
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 31);
+  /* CTA: 40 tall, 46 from the bottom edge of the 208x320 active frame, and only
+     as wide as its label (137 for "Go to Bonuses") rather than the full 176.
+     --lb-cta-gap is deliberately NOT set: the core derives the with-button
+     bottom padding as bottom + height + gap, which for these numbers would need
+     a negative gap, so Thor overrides that padding outright further down. */
+  --lb-cta-bottom: calc(var(--lb-card-width) / 208 * 46);
+  --lb-cta-h: calc(var(--lb-card-width) / 208 * 40);
   /* The text band is its own centred box, so the content flow needs no gap. */
   --lb-content-gap: 0px;
 }
@@ -93,8 +108,25 @@
      background raster: exporting a Figma frame clips whatever bleeds outside it,
      and the blur is already budgeted by --lb-glow-clearance on the track. */
   box-shadow: 0 0 var(--lb-glow-blur) 0 var(--lb-active-glow);
-  /* The active frame lifts its text band higher than a history card. */
-  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 59);
+  /* Today's card sits its band lower than a locked day. `available` is the value
+     here; the two opened results differ again and are set further down. */
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 39);
+}
+
+/* The two opened results each land their title on their own line in the design:
+   a prediction's two-line copy hangs lower than the question mark card's, and a
+   prize's is lifted by the CTA footer reserved under it (see the padding
+   override in the CTA block). */
+.lb-card--prediction.lb-card--active {
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 43);
+}
+
+/* The missed-day burn holds the card in the 320 box before collapsing it to 288.
+   62 here puts the band on exactly the centre the settled 288 card lands on
+   (30 from a 288 bottom), so neither the text nor the art moves during the
+   collapse — only the frame does. Not a design number: a continuity one. */
+.lb-card--missed.lb-card--active {
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 62);
 }
 
 /* A rim in the raster must never be cropped, so `cover` is the wrong fit here.
@@ -160,15 +192,41 @@
 
    The colour defaults to transparent and is switched on per state below, so the
    overlay can be declared once. z-index 4 puts it above the badges (3): it is the
-   card's edge, and a real border would paint there too. */
+   card's edge, and a real border would paint there too.
+
+   A plain border cannot hold a gradient, so the base rule below draws the flat
+   fallback and the @supports block upgrades it to a gradient ring: the
+   pseudo-element is filled with the ramp and then masked down to its own padding
+   ring, which is the one way to get a gradient border that still follows
+   border-radius. The upgrade is gated because an engine that ignores
+   `mask-composite` would paint the fill over the whole card rather than a rim —
+   a much worse failure than a flat border. */
 .lb-card::after {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 4;
-  border: var(--lb-b2-rim-w) solid var(--lb-rim, transparent);
+  border: var(--lb-b2-rim-w) solid var(--lb-rim-flat, transparent);
   border-radius: inherit;
   pointer-events: none;
+}
+
+@supports ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
+  .lb-card::after {
+    /* The border is what reserved the ring; the padding takes that job over so
+       the masked content box is inset by exactly the rim width. */
+    border-width: 0;
+    padding: var(--lb-b2-rim-w);
+    background: var(--lb-rim, none);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
 }
 
 /* Which states get a CSS rim. These selectors mirror `backgroundFor` in render.js
@@ -179,16 +237,18 @@
    raster, and a second one would double it. Note that a past result carries
    `lb-card--prize lb-card--history` WITHOUT `lb-card--active`, which is the same
    distinction `backgroundFor` uses to fall back to `previous`. The skeleton also
-   matches nothing, so its ::after draws a transparent border inside the 2px
-   border it already has. */
+   matches nothing on purpose — it is a flat card with no edge at all — so its
+   ::after stays transparent. */
 .lb-card--available,
 .lb-card--prize.lb-card--active,
 .lb-card--prediction.lb-card--active {
   --lb-rim: var(--lb-b2-rim-live);
+  --lb-rim-flat: var(--lb-b2-rim-live-flat);
 }
 
 .lb-card--locked {
   --lb-rim: var(--lb-b2-rim-locked);
+  --lb-rim-flat: var(--lb-b2-rim-locked-flat);
 }
 
 /* Animated portal ----------------------------------------------------------
@@ -244,34 +304,53 @@
 
 /* Badges ------------------------------------------------------------------- */
 
-/* Thor insets the badge row 16 from the sides; a history card sits it slightly
-   higher than today's, which has more room under the portal rim. */
+/* Thor insets the badge row 16 from the sides and 16 from the top, on every
+   state — the design puts the date pill at the same height on the 320 active
+   frame and the 288 history one.
+
+   The row carries the date and nothing else: Thor's status moved out of it and
+   into .lb-card__status under the title, so the core's `space-between` has
+   nothing to spread and the pill is simply centred. */
 .lb-card__badges {
-  top: calc(var(--lb-card-width) / 208 * 10);
+  top: calc(var(--lb-card-width) / 208 * 16);
   left: calc(var(--lb-card-width) / 208 * 16);
   right: calc(var(--lb-card-width) / 208 * 16);
+  justify-content: center;
 }
 
-.lb-card--active .lb-card__badges {
-  top: calc(var(--lb-card-width) / 208 * 16);
+/* Badge and chip are the same pill (component/badge/*): 16 tall, 8 of side
+   padding, caption/s/bold. Declared together so the pair cannot drift. */
+.lb-card__badge,
+.lb-card__status {
+  height: calc(var(--lb-card-width) / 208 * 16);
+  padding: 0 calc(var(--lb-card-width) / 208 * 8);
+  font-weight: 700;
+  font-size: calc(var(--lb-card-width) / 208 * 10);
+  line-height: calc(var(--lb-card-width) / 208 * 17);
 }
 
-.lb-card__badge {
-  font-size: calc(var(--lb-card-width) / 208 * 12);
-  line-height: 1.3;
+/* Status chip: the last row of the text block, 8 under the title. Sits in the
+   flow rather than being pinned to the card so it follows a title that runs to
+   two lines (a past prediction) as readily as a one-line prize name. */
+.lb-card__status {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-top: calc(var(--lb-card-width) / 208 * 8);
+  border-radius: var(--lb-radius-pill);
+  color: var(--lb-status-text);
+  white-space: nowrap;
 }
 
-.lb-card__badge--outline {
-  line-height: 1.3;
+.lb-card__status--missed {
+  background: var(--lb-status-missed-bg);
 }
 
-/* Countdown pill: unlike the bare "Not opened" outline, the timer gets the same
-   translucent violet fill as the date pill so the two read as a matched pair. */
-.lb-card__badge--timer {
-  background: var(--lb-badge-bg);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-  color: #ffffff;
+.lb-card__status--revealed {
+  background: var(--lb-status-revealed-bg);
 }
 
 /* Object geometry ----------------------------------------------------------
@@ -285,34 +364,41 @@
                     day). */
 .lb-card--available {
   --lb-obj-w: 128;
-  --lb-obj-shift: 30;
+  --lb-obj-shift: 40.5;
 }
 
 .lb-card--locked {
-  --lb-obj-w: 110;
-  --lb-obj-shift: 19;
+  --lb-obj-w: 112;
+  --lb-obj-shift: 46.5;
 }
 
 .lb-card--missed {
   --lb-obj-w: 112;
-  --lb-obj-shift: 20;
+  --lb-obj-shift: 34;
 }
 
 .lb-card--history {
   --lb-obj-w: 112;
-  --lb-obj-shift: 20;
+  --lb-obj-shift: 34;
+}
+
+/* A past prediction sits its cookie 10 higher than a past prize sits its art.
+   The text band is the same 90 on both, so this cannot fall out of the flow —
+   it is its own knob. Must follow .lb-card--history, which it overrides. */
+.lb-card--prediction.lb-card--history {
+  --lb-obj-shift: 24;
 }
 
 .lb-card--prize.lb-card--active {
   --lb-obj-w: 128;
   /* With the CTA footer reserved the free space above the text band shrinks, so
-     this state needs a bigger nudge than the CTA-less active card. */
-  --lb-obj-shift: 36;
+     this state needs a slightly different nudge than the CTA-less active card. */
+  --lb-obj-shift: 36.5;
 }
 
 .lb-card--prediction.lb-card--active {
   --lb-obj-w: 128;
-  --lb-obj-shift: 30;
+  --lb-obj-shift: 46.5;
 }
 
 /* Text --------------------------------------------------------------------- */
@@ -329,10 +415,9 @@
   align-items: center;
   justify-content: center;
   height: calc(var(--lb-card-width) / 208 * 90);
-  /* The design's text box is 191 wide — wider than the card's 16 side padding
-     allows — so it is sized explicitly rather than filling the content box. */
-  width: calc(var(--lb-card-width) / 208 * 191);
-  max-width: none;
+  /* The design's text box is the content box: 176, i.e. 208 less the 16 of side
+     padding either side. */
+  width: 100%;
 }
 
 .lb-card__text .lb-card__title {
@@ -343,11 +428,24 @@
   text-shadow: 0 0 calc(var(--lb-card-width) / 208 * 4) #0e042d;
 }
 
-/* A missed day names the prize it lost in a smaller, cooler type and adds the
-   italic consolation line under it. */
+/* A missed day names the prize it lost in the same type as a won one, only
+   cooler in colour (Text/color-text-body) — the amber chip under it is what
+   says the day is gone. */
 .lb-card--missed .lb-card__text .lb-card__title {
-  font-size: calc(var(--lb-card-width) / 208 * 14);
-  color: var(--lb-subtitle-text);
+  color: var(--lb-missed-title-text);
+}
+
+/* The chip adds another row to the text block, so the band it is centred in has
+   to sit lower than a locked day's or the title rides up off the design's line.
+   30 lands the title and the chip within a pixel of the design on both a
+   one-line prize name and a two-line prediction.
+
+   `:not(.lb-card--active)` is load-bearing: during the missed-day burn the card
+   is still held in the 208x320 active box, which has its own --lb-pad-bottom
+   above, and this rule would otherwise outrank it mid-animation. */
+.lb-card--history:not(.lb-card--active),
+.lb-card--missed:not(.lb-card--active) {
+  --lb-pad-bottom: calc(var(--lb-card-width) / 208 * 30);
 }
 
 .lb-card__text .lb-card__subtitle {
@@ -358,6 +456,24 @@
 }
 
 /* CTA ---------------------------------------------------------------------- */
+
+/* The core derives this from --lb-cta-bottom + --lb-cta-h + --lb-cta-gap, which
+   cannot reach the design's number without a negative gap: the text band is 90
+   tall but its title occupies only the middle of it, so the band's empty lower
+   half is allowed to overlap the button's row. Set the distance the design
+   actually wants between the card bottom and the band bottom instead. */
+.lb-card__content:has(.lb-card__cta) {
+  padding-bottom: calc(var(--lb-card-width) / 208 * 67);
+}
+
+/* Only as wide as the label. Auto margins centre it inside the 16-unit side
+   insets the core already set, which leaves `transform` free for the entrance
+   animation (lb-b2-cta-in) instead of spending it on a translateX(-50%). */
+.lb-card__cta {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
 
 /* Scrim behind the button ("затемнення" in the design): the portal's podium is
    bright enough to fight the mint pill, so the bottom of the card is darkened
@@ -595,23 +711,36 @@
 
 /* Skeleton ----------------------------------------------------------------- */
 
-/* Loading placeholder. Core paints a flat --lb-skeleton-bg here; Thor overlays
-   its Figma gradient plus a magenta rim so the row reads as "Thor loading"
-   before any card art has arrived. Border thickness scales with the card. */
+/* Loading placeholder. The design is deliberately quiet — a flat dark-violet card
+   with the mark barely showing — so Thor adds no gradient and no rim of its own:
+   the core's flat --lb-skeleton-bg fill and `border: none` ARE the design. An
+   earlier revision had a bright violet ramp and a magenta edge here; it made a
+   loading row shout louder than the real cards.
+
+   The one rule Thor still needs is the fill: core sets it on .lb-card--skeleton,
+   but Thor's own .lb-card sets --lb-card-bg at the same specificity and later in
+   the cascade, so without restating it here every skeleton would come up in the
+   card's near-black instead of the design's dark violet.
+
+   The mark sits 112 inside the core's 128 box, centred, at 30%. */
 .lb-card--skeleton {
-  background: linear-gradient(180deg, #6c01f3 0%, #3b0b7d 50%, #2c0a5b 100%);
-  border: calc(var(--lb-card-width) / 208 * 2) solid #6a01ee;
+  background: var(--lb-skeleton-bg);
+  /* Same story for the halo: core switches it off on a skeleton, but the runtime
+     gives the first placeholder `lb-card--active` to reserve today's taller box,
+     and Thor's .lb-card--active glow then outranks core by source order. The
+     reserved height is wanted; a neon halo around a loading card is not. */
+  box-shadow: none;
 }
 
-/* Figma calls for the WS mark at 50% opacity, brighter than the 32% core default. */
 .lb-card__skeleton-logo {
-  opacity: 0.5;
+  opacity: 0.3;
 }
 
 .lb-card__skeleton-logo img {
-  width: 100%;
-  height: 100%;
-  max-width: none;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--lb-card-width) / 208 * 112);
+  height: calc(var(--lb-card-width) / 208 * 112);
   object-fit: contain;
 }
 

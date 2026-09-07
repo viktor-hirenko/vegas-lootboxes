@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { isActive, isClickable, hasCta, prizeTypeOf, isNoPrizeType, statusTextFor } from '../core/card-model.js';
 import { PRIZE as VEGAS_PRIZE } from '../lootbox/vocabulary.js';
 import { PRIZE as THOR_PRIZE } from '../lootbox-2/vocabulary.js';
-import { statusTextFor as thorStatusTextFor, renderInner as renderThor } from '../lootbox-2/render.js';
+import { statusChipFor as thorStatusChipFor, renderInner as renderThor } from '../lootbox-2/render.js';
 import { renderInner as renderVegas } from '../lootbox/render.js';
 import { PRIZE_ART, MISSED_ART as VEGAS_MISSED_ART } from '../lootbox/icons.js';
 import {
@@ -201,12 +201,103 @@ test('opened prediction art ignores prizeType', () => {
   );
 });
 
-test('Thor leaves an opened result to a bare date pill, today or in history', () => {
-  assert.equal(thorStatusTextFor({ state: 'missed' }), 'Not opened');
-  assert.equal(thorStatusTextFor({ state: 'missed', tag: 'Expired' }), 'Expired');
-  assert.equal(thorStatusTextFor({ state: 'prize', active: true }), '');
-  assert.equal(thorStatusTextFor({ state: 'prize', active: false }), '');
-  assert.equal(thorStatusTextFor({ state: 'prediction', active: true }), '');
-  // a parent that still sends the Vegas wording gets it dropped, not rendered
-  assert.equal(thorStatusTextFor({ state: 'prize', active: false, tag: 'Opened' }), '');
+/** The rendered title, with the entities `escapeHtml` produces turned back into
+ * the characters a reader actually sees — so the expectations below can be
+ * written the way the design writes them. */
+function titleOf(html) {
+  const m = html.match(/<p class="lb-card__title">([^<]*)<\/p>/);
+  if (!m) return null;
+  return m[1]
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+test('Thor supplies the copy for the three states the host sends no title for', () => {
+  // The line breaks are the point: the design breaks both two-line titles at a
+  // chosen word, and only a literal \n in the default survives to the screen.
+  assert.equal(titleOf(renderThor({ state: 'available' })), "See what's\ninside");
+  assert.equal(titleOf(renderThor({ state: 'prediction' }, { active: true })), 'Your lucky sign\nis near');
+  assert.equal(titleOf(renderThor({ state: 'prediction' }, { active: false })), 'Your lucky sign\nis near');
+  // a prize or a missed day is named by the host, never by the widget
+  assert.equal(titleOf(renderThor({ state: 'prize' }, { active: false })), null);
+  assert.equal(titleOf(renderThor({ state: 'missed' })), null);
+  // and an explicit title still wins over every default
+  assert.equal(titleOf(renderThor({ state: 'available', title: '20 CAD bonus' })), '20 CAD bonus');
+});
+
+test('Thor names the moment only on the locked day that is next up', () => {
+  assert.equal(titleOf(renderThor({ state: 'locked' }, { spotlight: true })), 'Opens tomorrow');
+  assert.equal(titleOf(renderThor({ state: 'locked' }, { spotlight: false })), 'Opens soon');
+  // spotlight defaults to false, which is what open.js relies on
+  assert.equal(titleOf(renderThor({ state: 'locked' })), 'Opens soon');
+  // the flag is scoped to locked days; it must not leak onto any other state
+  assert.equal(titleOf(renderThor({ state: 'available' }, { spotlight: true })), "See what's\ninside");
+});
+
+test('Thor chips a day that is over, and only one that is over', () => {
+  assert.deepEqual(thorStatusChipFor({ state: 'missed' }, false), {
+    text: 'Missed',
+    tone: 'missed',
+  });
+  assert.deepEqual(thorStatusChipFor({ state: 'prize' }, false), {
+    text: 'Revealed',
+    tone: 'revealed',
+  });
+  assert.deepEqual(thorStatusChipFor({ state: 'prediction' }, false), {
+    text: 'Revealed',
+    tone: 'revealed',
+  });
+  // today's card and a day that has not come round yet report nothing
+  assert.equal(thorStatusChipFor({ state: 'prize' }, true), null);
+  assert.equal(thorStatusChipFor({ state: 'prediction' }, true), null);
+  assert.equal(thorStatusChipFor({ state: 'available' }, true), null);
+  assert.equal(thorStatusChipFor({ state: 'locked' }, false), null);
+  // the parent can override either wording
+  assert.equal(thorStatusChipFor({ state: 'missed', tag: 'Expired' }, false).text, 'Expired');
+  assert.equal(thorStatusChipFor({ state: 'prize', tag: 'Opened' }, false).text, 'Opened');
+});
+
+function statusChips(html) {
+  return [...html.matchAll(/<span class="lb-card__status lb-card__status--(\w+)">([^<]*)<\/span>/g)]
+    .map(([, tone, text]) => ({ tone, text }));
+}
+
+test('Thor renders the status chip inside the text block, never in the badge row', () => {
+  const missed = renderThor({ state: 'missed', date: '1 Mar', title: '20 CAD bonus' });
+  assert.deepEqual(statusChips(missed), [{ tone: 'missed', text: 'Missed' }]);
+  // the chip is a row of .lb-card__text, so it tracks the title's line count
+  assert.match(missed, /<div class="lb-card__text">.*lb-card__status.*<\/div>/s);
+
+  const history = renderThor({ state: 'prize', date: '1 Mar' }, { active: false });
+  assert.deepEqual(statusChips(history), [{ tone: 'revealed', text: 'Revealed' }]);
+
+  for (const card of [
+    { state: 'available', date: '1 Mar' },
+    { state: 'locked', date: '2 Mar' },
+    { state: 'prize', date: '3 Mar', active: true },
+  ]) {
+    assert.deepEqual(statusChips(renderThor(card)), [], `${card.state} must carry no chip`);
+  }
+});
+
+test('Thor badge row is the date alone, centred, on every state', () => {
+  for (const card of [
+    { state: 'available', date: '1 Mar' },
+    { state: 'locked', date: '2 Mar', timerTo: Date.now() + 120_000 },
+    { state: 'missed', date: '3 Mar' },
+    { state: 'prize', date: '4 Mar', active: false },
+  ]) {
+    const html = renderThor(card);
+    assert.equal(
+      (html.match(/lb-card__badge--filled/g) || []).length,
+      1,
+      `${card.state} must carry exactly one date pill`,
+    );
+    // the status pill and the countdown both left the row for good
+    assert.doesNotMatch(html, /lb-card__badge--outline/, `${card.state} kept an outline pill`);
+    assert.doesNotMatch(html, /lb-card__badge--timer|data-lb-timer-to/, `${card.state} kept a timer`);
+  }
 });

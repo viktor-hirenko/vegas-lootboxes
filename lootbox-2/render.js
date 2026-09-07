@@ -11,9 +11,8 @@ import {
   isNoPrizeType,
   renderBadges,
 } from '../core/card-model.js';
-import { formatCountdown } from '../core/countdown.js';
 import { BACKGROUNDS, BG_SIZES, OBJECTS_LG, OBJECTS_SM, MISSED_ART } from './icons.js';
-import { PRIZE, DEFAULT_TITLES, DEFAULT_MISSED_SUBTITLE } from './vocabulary.js';
+import { PRIZE, DEFAULT_TITLES, NEXT_LOCKED_TITLE, STATUS_LABELS } from './vocabulary.js';
 import { observeBgAnim } from './bg-anim.js';
 
 /**
@@ -68,50 +67,68 @@ function objectFor(card, active) {
 }
 
 /**
- * The unlock deadline this card should count down to, or 0 for no countdown.
+ * The status chip under the title, or null on a card that gets none.
  *
- * Only a locked day counts down: once a card is available/opened/missed there is
- * nothing left to wait for, and a stale `timerTo` on such a card would otherwise
- * keep a badge ticking.
+ * The chip marks a day that is OVER, so it appears on exactly the states the
+ * design draws it on: a missed day (amber), and a prize or prediction that has
+ * dropped into history (green). Today's card carries no chip — its result is
+ * still the thing the player is looking at — and neither does a locked day,
+ * which has nothing to report yet.
+ *
+ * The tone is a class suffix rather than a colour so theme.css keeps ownership
+ * of the palette. `card.tag` overrides the label the way it does on Vegas.
+ *
+ * @param {object} card
+ * @param {boolean} active
+ * @returns {{ text: string, tone: 'missed' | 'revealed' } | null}
  */
-function deadlineFor(card) {
-  if (card.state !== CARD_STATE.LOCKED) return 0;
-  const to = Number(card.timerTo);
-  return Number.isFinite(to) && to > 0 ? to : 0;
+export function statusChipFor(card, active) {
+  if (card.state === CARD_STATE.MISSED) {
+    return { text: card.tag || STATUS_LABELS.missed, tone: 'missed' };
+  }
+  if (!active && OPENED_RESULT_STATES.includes(card.state)) {
+    return { text: card.tag || STATUS_LABELS.revealed, tone: 'revealed' };
+  }
+  return null;
+}
+
+/** The chip's markup, or an empty string. Kept here rather than in
+ * core/card-model.js because Thor is the only brand that draws one — Vegas puts
+ * its status in the top badge row instead. */
+function renderStatusChip(card, active) {
+  const chip = statusChipFor(card, active);
+  if (!chip) return '';
+  return `<span class="lb-card__status lb-card__status--${chip.tone}">${escapeHtml(chip.text)}</span>`;
 }
 
 /**
- * Status pill text — the outline badge to the right of the date.
+ * The copy the widget falls back to when the host sends no `title`.
  *
- * Thor only fills it on two states: a locked day counts down to its unlock, and
- * a missed day reads "Not opened". An opened result keeps a bare date pill
- * whether it is today's card or history, so `card.tag` is deliberately ignored
- * there — Vegas is the brand that spells out "Opened" once a result is past.
+ * The only state that reads two ways is `locked`: the next day up names its
+ * moment ("Opens tomorrow") while the rest of the month stays vague ("Opens
+ * soon"). `spotlight` is the core's own answer to "which locked day is next"
+ * (`findSpotlightLockedIndex`), so the copy and the animation agree by
+ * construction instead of by a second, parallel rule.
  */
-export function statusTextFor(card) {
-  if (card.state === CARD_STATE.LOCKED) {
-    const deadline = deadlineFor(card);
-    if (deadline) return formatCountdown(deadline - Date.now());
-    // A parent that formats the countdown itself can send a literal string.
-    return card.timer ? String(card.timer) : '';
-  }
-  if (card.state === CARD_STATE.MISSED) return card.tag || 'Not opened';
-  return '';
+function defaultTitleFor(card, spotlight) {
+  if (card.state === CARD_STATE.LOCKED && spotlight) return NEXT_LOCKED_TITLE;
+  return DEFAULT_TITLES[card.state] || '';
 }
 
-/** Title (+ optional second line) as one block, so theme.css can centre the
- * pair on the fixed vertical band the design uses for every state. */
-function renderText(card) {
-  const title = escapeHtml(card.title || DEFAULT_TITLES[card.state] || '');
-  const subtitleSource =
-    card.state === CARD_STATE.MISSED ? card.subtitle || DEFAULT_MISSED_SUBTITLE : card.subtitle;
-  const subtitle = escapeHtml(subtitleSource || '');
+/** Title, optional second line and the status chip as one block, so theme.css
+ * can centre the group on the fixed vertical band the design uses for every
+ * state. The chip rides inside the block rather than being pinned to the card so
+ * it stays glued to the title however many lines that title runs to. */
+function renderText(card, active, spotlight) {
+  const title = escapeHtml(card.title || defaultTitleFor(card, spotlight));
+  const subtitle = escapeHtml(card.subtitle || '');
+  const statusHtml = renderStatusChip(card, active);
 
-  if (!title && !subtitle) return '';
+  if (!title && !subtitle && !statusHtml) return '';
 
   const titleHtml = title ? `<p class="lb-card__title">${title}</p>` : '';
   const subtitleHtml = subtitle ? `<p class="lb-card__subtitle">${subtitle}</p>` : '';
-  return `<div class="lb-card__text">${titleHtml}${subtitleHtml}</div>`;
+  return `<div class="lb-card__text">${titleHtml}${subtitleHtml}${statusHtml}</div>`;
 }
 
 /**
@@ -196,10 +213,10 @@ export function renderInner(
       <span class="lb-card__object-wrap">
         <img class="lb-card__object" src="${object}" alt="" aria-hidden="true" decoding="async" />
       </span>
-      ${renderText(card)}
+      ${renderText(card, active, spotlight)}
       ${cta}
     </div>
-    ${renderBadges(card, statusTextFor(card), { timerTo: deadlineFor(card) })}
+    ${renderBadges(card)}
   `;
 }
 

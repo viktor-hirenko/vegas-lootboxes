@@ -234,8 +234,9 @@ See [`INTEGRATION.md`](./INTEGRATION.md) for the full contract. Card states,
 scalable card count, navigation, the full `postMessage` protocol, skeleton loading
 and the brand-specific visuals are implemented for both widgets. **Vegas**
 open/reveal animations are production-ready; **Thor** contract, art and optional
-fields (`subtitle`, `timerTo` / `timer`, `timerEnd`) are final, while open/burn
-motion is still a draft — see INTEGRATION.md §11.
+fields (`subtitle`, `tag`) are final, while open/burn motion is still a draft —
+see INTEGRATION.md §11. Thor renders no countdown: `timerTo` / `timer` and the
+`timerEnd` event are Vegas-shaped fields it ignores.
 
 The open sequence is the same two-phase model in every brand, because the reveal is
 driven by the backend result rather than by a fixed timeline:
