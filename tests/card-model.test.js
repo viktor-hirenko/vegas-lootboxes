@@ -172,11 +172,10 @@ test('missed + prizeType prediction picks brand no-prize art, empty does not', (
     objectSrc(renderThor({ state: 'missed', prizeType: 'cash' })),
     THOR_MISSED_ART.cash,
   );
-  // Vegas has no missed-prediction ball yet; the marker still must not ride
-  // the unknown→coin path for any other reason than this explicit branch.
+  // The marker must ride its own branch, not the unknown→coin fallback below.
   assert.equal(
     objectSrc(renderVegas({ state: 'missed', prizeType: 'prediction' })),
-    VEGAS_MISSED_ART.coins,
+    VEGAS_MISSED_ART.prediction,
   );
   assert.equal(
     objectSrc(renderVegas({ state: 'missed', prizeType: '' })),

@@ -37,7 +37,9 @@ export const PRIZE_ART = Object.freeze({
   'bonus-money': `${BASE}/prizes/bonus-money.webp`,
 });
 
-/** Missed-day art keyed by prize type (prize embedded in a disco ball). */
+/** Missed-day art keyed by prize type (prize embedded in a shattered disco
+ * ball). `prediction` is the host's no-prize marker, not a prize type, so it
+ * lives here beside them rather than in PRIZE_ART. */
 export const MISSED_ART = Object.freeze({
   cash: `${BASE}/missed/cash.webp`,
   cashback: `${BASE}/missed/cashback.webp`,
@@ -45,6 +47,7 @@ export const MISSED_ART = Object.freeze({
   'free-spins': `${BASE}/missed/free-spins.webp`,
   'free-chips': `${BASE}/missed/free-chips.webp`,
   'bonus-money': `${BASE}/missed/bonus-money.webp`,
+  prediction: `${BASE}/missed/prediction.webp`,
 });
 
 /**

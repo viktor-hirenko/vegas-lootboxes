@@ -41,9 +41,10 @@ function objectFor(card, active) {
     case CARD_STATE.PRIZE:
       return PRIZE_ART[prizeTypeOf(card, PRIZE)];
     case CARD_STATE.MISSED:
-      // No missed-prediction ball in the Vegas kit yet. Same marker as Thor;
-      // until that art exists the card keeps the coin the host already sees.
-      if (isNoPrizeType(card)) return MISSED_ART.coins;
+      // No-prize missed day: the cracked ball with the unread prediction note.
+      // `"prediction"` is a host marker, not a prize type, so it never reaches
+      // prizeTypeOf — an empty/unknown prizeType still falls back to the coin.
+      if (isNoPrizeType(card)) return MISSED_ART.prediction;
       return MISSED_ART[prizeTypeOf(card, PRIZE)];
     default: // prediction
       // Active (today's) prediction loops the animated ball SVG; a previous-day
